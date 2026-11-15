@@ -13,11 +13,12 @@ class Autobib:
     """
     Static class to group all auto-bibliography functions.
     """
-    citekey_matcher = re.compile('^@.*{([^,]*)[,]?')
+    citekey_matcher = re.compile(r'^@[^{]*{\s*([^,\s}]*)')
     author_matcher = re.compile(r'^\s*author\s*=\s*(.*)', re.IGNORECASE)
     editor_matcher = re.compile(r'^\s*editor\s*=\s*(.*)', re.IGNORECASE)
     title_matcher = re.compile(r'^\s*title\s*=\s*(.*)', re.IGNORECASE)
     year_matcher = re.compile(r'^\s*year\s*=\s*(.*)', re.IGNORECASE)
+    crossref_matcher = re.compile(r'^\s*crossref\s*=\s*(.*)', re.IGNORECASE)
 
     citekey_stops = r"[@',\#}{~%\[\]\s]"
 
@@ -109,7 +110,34 @@ class Autobib:
                     year = Autobib.remove_latex_commands(year)
                     entries[current_citekey]['year'] = year
                     continue
+                match = Autobib.crossref_matcher.findall(line)
+                if match:
+                    crossref = Autobib.remove_latex_commands(match[0]).strip().strip('"')
+                    entries[current_citekey]['crossref'] = crossref
+                    continue
+        Autobib.resolve_crossrefs(entries)
         return entries
+
+    @staticmethod
+    def resolve_crossrefs(entries):
+        """
+        BibTeX `crossref`: an entry inherits the fields it lacks from its
+        parent entry (e.g. a chapter takes editor and year from the book).
+        The title is never inherited: the parent's title is the book title.
+        """
+        lower_keys = {key.lower(): key for key in entries}
+        for citekey in list(entries):
+            entry = entries[citekey]
+            parent_key = entry.get('crossref')
+            if not parent_key:
+                continue
+            parent_key = lower_keys.get(parent_key.lower())
+            if parent_key is None or parent_key == citekey:
+                continue
+            parent = entries[parent_key]
+            for field in ('authors', 'editors', 'year'):
+                if not entry.get(field) and parent.get(field):
+                    entry[field] = parent[field]
 
     @staticmethod
     def parse_authors(line):
