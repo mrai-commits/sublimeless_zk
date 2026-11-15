@@ -1470,6 +1470,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * All commands and shortcuts work in the window and apply to its note: saving, formatting, inserting links and citations, find/replace.
 * Links clicked in a note window open in the main window, so the window keeps its note.
 * <kbd>ctrl/cmd</kbd> + <kbd>W</kbd> in a note window closes the window; the tab stays. Closing the tab closes its window.
+* The note windows that are open when you quit come back, in the same places, at the next start.
 
 #### CriticMarkup
 

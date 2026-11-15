@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.Qsci import *
 from PyQt5.QtCore import Qt
-from PyQt5.QtCore import QObject, QTimer, QEventLoop, QUrl
+from PyQt5.QtCore import QObject, QTimer, QEventLoop, QUrl, QRect
 import re
 import unicodedata
 from collections import Counter
@@ -53,6 +53,7 @@ class Sublimeless_Zk(QObject):
         self.project = Project(self.app_state.recent_projects[-1])
         self._show_images_disabled = True and getattr(sys, 'frozen', False)
         self.note_windows = []          # notes shown in their own windows
+        self._note_windows_closing = False
         self.last_note_view = None
         self.recent_projects_limit = 10
         self.recent_projects_actions = []
@@ -876,6 +877,7 @@ class Sublimeless_Zk(QObject):
         if not isinstance(editor, ZettelkastenScintilla) or editor.editor_type != 'normal' or not editor.file_name:
             self.notify('Only notes can be opened in their own window')
             return None
+        self._note_windows_closing = False
         primary = self.primary_of(editor)
         existing = self.windows_of(primary)
         if existing:
@@ -906,6 +908,10 @@ class Sublimeless_Zk(QObject):
 
     def close_note_windows(self, primary=None):
         """Close the windows of one note, or all of them."""
+        if primary is None:
+            # quitting or changing folder: what is open now was just recorded
+            # and must not be forgotten because the windows close
+            self._note_windows_closing = True
         for window in list(self.note_windows):
             if primary is None or window.primary is primary:
                 window.close()
@@ -974,12 +980,45 @@ class Sublimeless_Zk(QObject):
                 # if file still exists
                 if os.path.exists(filn):
                     self.open_document(filn)
+        self.reopen_note_windows()
+
+    def record_note_windows(self):
+        """Remember which notes are in their own windows, and where."""
+        if self._note_windows_closing or not self.project:
+            return      # they were closed by quitting: keep what was recorded
+        windows = []
+        for window in self.note_windows:
+            g = window.geometry()
+            windows.append({'file': window.primary.file_name, 'geometry': [g.x(), g.y(), g.width(), g.height()]})
+        self.app_state.window.setdefault('note_windows', {})[self.project.folder] = windows
+
+    def reopen_note_windows(self):
+        self._note_windows_closing = False
+        saved = (self.app_state.window.get('note_windows') or {}).get(self.project.folder, [])
+        for entry in list(saved):
+            try:
+                filn = entry.get('file')
+                if not filn or not os.path.exists(filn):
+                    continue
+                editor = self.open_document(filn)
+                window = self.open_note_window(editor)
+                geometry = entry.get('geometry')
+                if window and geometry and len(geometry) == 4 and geometry[2] > 150 and geometry[3] > 100:
+                    rect = QRect(*[int(v) for v in geometry])
+                    # only if that place still is on a connected screen
+                    if any(screen.availableGeometry().intersects(rect) for screen in self.app.screens()):
+                        window.setGeometry(rect)
+            except Exception as e:
+                print('could not reopen a note window:', e)
 
     def save_appstate(self):
         print('save appstate')
         self.update_open_notes()
         if self.gui is not None and self.gui.isVisible():
+            note_windows = self.app_state.window.get('note_windows', {})
             self.app_state.window = self.gui.layout_state()
+            self.app_state.window['note_windows'] = note_windows
+            self.record_note_windows()
         now = int(time.time())
         too_old = now - 31 * 24 * 60 * 60
         if self.project:

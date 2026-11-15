@@ -127,6 +127,33 @@ def test_double_click_and_quit(app):
     check('and closes the note windows', len(app.note_windows), 0)
 
 
+def test_windows_come_back(app):
+    import appstate
+    for path in (A, B):
+        app.open_document(path)
+    wa = app.open_note_window(app.open_document(A)); wb = app.open_note_window(app.open_document(B))
+    wa.setGeometry(120, 90, 500, 400); wb.setGeometry(700, 150, 450, 380); app.app.processEvents()
+    app.save_all()
+    check('quitting is allowed', app.mainwindow_close_handler(), True)
+    app.app.processEvents()
+    app.save_appstate()                         # as happens again while shutting down
+    saved = appstate.AppState().window.get('note_windows', {}).get(app.project.folder, [])
+    check('the open windows are remembered', sorted(os.path.basename(e['file']) for e in saved),
+          ['201801010801 Alpha.md', '201801010802 Beta.md'])
+    # next start: the state is read again and the folder is opened
+    app.app_state = appstate.AppState()
+    app.reopen_notes(); app.app.processEvents()
+    titles = sorted(w.windowTitle() for w in app.note_windows)
+    check('they are reopened at the next start', titles, ['201801010801 Alpha.md', '201801010802 Beta.md'])
+    alpha = [w for w in app.note_windows if 'Alpha' in w.windowTitle()][0]
+    check('with their size', (alpha.geometry().width(), alpha.geometry().height()), (500, 400))
+    app.close_note_windows(app.open_document(B)); app.app.processEvents()
+    app.save_appstate()
+    saved = appstate.AppState().window.get('note_windows', {}).get(app.project.folder, [])
+    check('a window closed by the user is not reopened', [os.path.basename(e['file']) for e in saved], ['201801010801 Alpha.md'])
+    app.close_note_windows()
+
+
 run_gui_tests([test_open_window, test_text_is_shared, test_save_from_window, test_commands_apply_to_window,
                test_follow_link_from_window, test_close_window_keeps_tab, test_close_tab_closes_window,
-               test_rename_from_window, test_double_click_and_quit])
+               test_rename_from_window, test_double_click_and_quit, test_windows_come_back])
