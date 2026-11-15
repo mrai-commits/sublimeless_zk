@@ -92,6 +92,18 @@ def test_tab_moves_to_replace_field(app):      # item 40
     d.close()
 
 
+def test_unexpected_error_does_not_close_the_app(app):
+    import sys
+    from PyQt5.QtCore import QTimer
+    hook = app.on_unexpected_error            # the harness replaced sys.excepthook with its own
+    try:
+        raise RuntimeError('deliberate test error')
+    except RuntimeError:
+        hook(*sys.exc_info())
+    check('the user is told', 'Something went wrong (RuntimeError)' in app.gui.statusBar().currentMessage())
+    check('the app is still usable', app.gui.isVisible())
+
+
 run_gui_tests([test_altclick_missing_note, test_title_with_periods, test_rename_updates_open_list,
                test_replace_changes_highlighted_match, test_replace_all_terminates,
-               test_tab_moves_to_replace_field])
+               test_tab_moves_to_replace_field, test_unexpected_error_does_not_close_the_app])

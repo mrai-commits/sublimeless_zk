@@ -71,8 +71,12 @@ jobs:
         timeout-minutes: 5
         shell: pwsh
         run: |
+          $env:SUBLIMELESS_SELFTEST_LOG = "$PWD\selftest.txt"
           $p = Start-Process -FilePath dist\sublimeless_zk\sublimeless_zk.exe -ArgumentList '--self-test' -Wait -PassThru
           Write-Host "self-test exit code: $($p.ExitCode)"
+          if (Test-Path selftest.txt) { Get-Content selftest.txt }
+          $errors = Join-Path $env:TEMP 'sublimeless_zk-errors.txt'
+          if (Test-Path $errors) { Get-Content $errors }
           exit $p.ExitCode
 
       - name: Package (macOS)

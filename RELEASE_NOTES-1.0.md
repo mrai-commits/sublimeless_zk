@@ -9,6 +9,7 @@ The first release since 0.9. It brings the app to current versions of Python and
 * <kbd>alt</kbd> + click on a link to a note that does not exist no longer crashes the app. It lists the notes that contain the link.
 * Replace all no longer hangs when the replacement contains the search text (e.g. replacing `A` by `A B`).
 * `.bib` entries that have an editor but no author no longer crash the citation list.
+* An unexpected error in any command no longer closes the whole app. A message appears in the status bar, the details go to a log file, and you can keep working.
 * The app no longer refuses to start when MultiMarkdown is not available; the HTML export then uses the basic parser.
 
 **Editing and highlighting**

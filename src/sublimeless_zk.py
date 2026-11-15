@@ -619,6 +619,7 @@ class Sublimeless_Zk(QObject):
 
     def run(self):
         self.app = QApplication(sys.argv)
+        sys.excepthook = self.on_unexpected_error
         load_bundled_fonts()
         if sys.platform == 'darwin':
             # TODO: this sort-of fixes the menu formatting for [,[ style shortcuts
@@ -1068,6 +1069,26 @@ class Sublimeless_Zk(QObject):
     #
     # Zettelkasten Command Slots
     #
+
+    def on_unexpected_error(self, exc_type, exc_value, exc_traceback):
+        """
+        Last line of defence. Without it, Qt closes the whole app when an
+        error slips through in any command, and unsaved text is lost. Here
+        the error is written to a log file and the app keeps running.
+        """
+        import traceback
+        details = ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        log_filn = os.path.join(tempfile.gettempdir(), 'sublimeless_zk-errors.txt')
+        try:
+            with open(log_filn, 'a', encoding='utf-8', errors='ignore') as f:
+                f.write(f'---- {time.strftime("%Y-%m-%d %H:%M:%S")} ----\n{details}\n')
+            if sys.stderr is not None:
+                sys.stderr.write(details)
+            if self.gui is not None:
+                self.notify(f'Something went wrong ({exc_type.__name__}). The app keeps running; '
+                            f'details are in {log_filn}', 20)
+        except Exception:
+            pass
 
     def notify(self, msg, seconds=8):
         """Show a message in the status bar for a few seconds."""
@@ -2236,8 +2257,15 @@ def self_test():
             editor.setModified(False)
         except Exception as e:
             problems.append(f'editing or export failed: {e!r}')
-        print('SELFTEST', 'OK' if not problems else 'FAILED: ' + '; '.join(problems))
-        sys.stdout.flush()
+        verdict = 'SELFTEST ' + ('OK' if not problems else 'FAILED: ' + '; '.join(problems))
+        # a windowed app on Windows has no console: also write the result to a file
+        log_filn = os.environ.get('SUBLIMELESS_SELFTEST_LOG')
+        if log_filn:
+            with open(log_filn, 'w', encoding='utf-8') as f:
+                f.write(verdict + '\n')
+        print(verdict)
+        if sys.stdout is not None:
+            sys.stdout.flush()
         os._exit(0 if not problems else 1)
 
     original = app.connect_signals
