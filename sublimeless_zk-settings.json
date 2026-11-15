@@ -161,4 +161,8 @@
     "spellcheck": true,
     "spellcheck_languages": ["en_GB", "es_ES", "fr_FR"],
 
+    // Make all text in the editor larger or smaller than the theme says,
+    // in points: 1 = one point larger, -0.5 = half a point smaller.
+    "editor_font_size_adjust": 0,
+
 }

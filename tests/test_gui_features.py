@@ -239,6 +239,26 @@ def test_shortcut_cheatsheet(app):
         check('a palette entry still runs its command', f.read().startswith('# All Tags'))
 
 
+def test_font_size_adjust(app):
+    import settings as settings_module
+    e = app.open_document(N3); app.app.processEvents()
+    lexer = e.lexer()
+    base = lexer.font(lexer.style2id['default']).pointSizeF()
+    h1 = lexer.font(lexer.style2id['h1.text']).pointSizeF()
+    original = settings_module.get_settings
+    try:
+        patched = dict(original()); patched['editor_font_size_adjust'] = 1.5
+        import zkmdlexer
+        zkmdlexer.get_settings = lambda *a, **k: patched
+        lexer.apply_theme(); app.app.processEvents()
+        check('font size setting enlarges the text', lexer.font(lexer.style2id['default']).pointSizeF(), base + 1.5)
+        check('and the headings with it', lexer.font(lexer.style2id['h1.text']).pointSizeF(), h1 + 1.5)
+    finally:
+        zkmdlexer.get_settings = original
+        lexer.apply_theme()
+    check('default is the theme size', lexer.font(lexer.style2id['default']).pointSizeF(), base)
+
+
 def test_citation_needs_modifier(app):         # item 41
     e = app.open_document(N2); app.app.processEvents()
     clicked = []
@@ -255,4 +275,4 @@ def test_citation_needs_modifier(app):         # item 41
 run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
-               test_click_link_close_parent, test_bundled_fonts, test_shortcut_cheatsheet, test_citation_needs_modifier])
+               test_click_link_close_parent, test_bundled_fonts, test_font_size_adjust, test_shortcut_cheatsheet, test_citation_needs_modifier])

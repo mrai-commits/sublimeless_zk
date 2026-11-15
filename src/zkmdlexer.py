@@ -63,10 +63,17 @@ class ZkMdLexer(QsciLexerCustom):
         elif self.theme.font_info['style'] == 'bolditalic':
             italic = True
             weight = QFont.Bold
+        # setting "editor_font_size_adjust": points added to every font size
+        # of the theme, e.g. 1 or -0.5, without editing the theme itself
+        try:
+            size_adjust = float(get_settings().get('editor_font_size_adjust', 0) or 0)
+        except (TypeError, ValueError):
+            size_adjust = 0
         self.default_font =  QFont(self.theme.font_info['face'],
                                    self.theme.font_info['size'],
                                    weight=weight, italic=italic,
                                    )
+        self.default_font.setPointSizeF(max(4, self.theme.font_info['size'] + size_adjust))
         self.setDefaultFont(self.default_font)
 
         default_weight = weight
@@ -102,7 +109,9 @@ class ZkMdLexer(QsciLexerCustom):
             except ValueError:
                 print('illegal size in', current_style)
                 pass
-            self.setFont(QFont(current_style['face'], font_size, weight=weight, italic=italic), styleid)
+            style_font = QFont(current_style['face'], font_size, weight=weight, italic=italic)
+            style_font.setPointSizeF(max(4, font_size + size_adjust))
+            self.setFont(style_font, styleid)
             self.setEolFill(True, styleid)
 
         # indicators for clickable links

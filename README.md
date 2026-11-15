@@ -1503,6 +1503,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * In the lists of the command palette and the note, tag, and citation selectors, <kbd>up</kbd> on the first entry jumps to the last one, and <kbd>down</kbd> on the last to the first.
 * Long notes: typing stays fast in notes of 10,000 words and more.
 * The Ubuntu Mono fonts used by the themes come with the app and need not be installed.
+* `"editor_font_size_adjust": 1` makes all text in the editor one point larger than the theme says, without editing the theme. Negative and half values work too.
 
 
 ## Configuration
