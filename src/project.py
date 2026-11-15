@@ -82,7 +82,9 @@ class Project:
             origin_title = ''
             if origin_id:
                 # split off title and replace extension
-                origin_title = filn.rsplit(origin_id)[1].strip().rsplit('.')[0]
+                # cut the extension only: titles may contain periods ("Ch. 5")
+                basename = os.path.splitext(os.path.basename(filn))[0]
+                origin_title = basename[len(origin_id):].strip()
         return origin_id, origin_title
 
     def timestamp(self):

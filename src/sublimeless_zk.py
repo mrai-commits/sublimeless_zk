@@ -653,6 +653,7 @@ class Sublimeless_Zk(QObject):
         else:
             if filn:
                 return self.open_document(filn)
+            self._show_status_message(f'There is no note with the ID {noteid}')
 
     def clicked_tag(self, tag, ctrl, alt, shift):
         print('tag', tag)
@@ -1137,7 +1138,13 @@ class Sublimeless_Zk(QObject):
             print(note_id, editor_region)
         ref_note_files = self.project.find_referencing_notes(note_id)
         filn = self.project.note_file_by_id(note_id)
-        title = os.path.basename(filn).split(' ', 1)[1].strip().rsplit('.')[0]
+        if filn:
+            _, title = self.project.get_note_id_and_title_of_file(filn)
+            title = (title or '').strip()
+        else:
+            # link to a note that does not exist: still list who links to it
+            title = '(note does not exist)'
+            self._show_status_message(f'There is no note with the ID {note_id}')
         styled_link = self.project.style_link(note_id, title, force_title=True)
         self.project.externalize_note_links(ref_note_files, f'# {len(ref_note_files)} Notes referencing {styled_link}')
         self.reload(self.gui.search_results_editor)
@@ -1618,12 +1625,23 @@ class Sublimeless_Zk(QObject):
         self.save()
         settings = self.project.settings
         extension = settings.get('markdown_extension', '.md')
-        new_note_filn = os.path.join(self.project.folder, f'{note_id} {sanitize_filename(new_title)}{extension}')
-        os.rename(editor.file_name, new_note_filn)
-        # close tab
+        old_note_filn = editor.file_name
+        new_note_filn = os.path.join(os.path.dirname(old_note_filn), f'{note_id} {sanitize_filename(new_title)}{extension}')
+        if os.path.exists(new_note_filn):
+            QMessageBox.warning(self.gui, 'Rename Note', f'A note named {os.path.basename(new_note_filn)} already exists.')
+            return
+        try:
+            os.rename(old_note_filn, new_note_filn)
+        except OSError as e:
+            QMessageBox.warning(self.gui, 'Rename Note', f'The note could not be renamed:\n{e}')
+            return
+        # close the tab and forget the old name everywhere
         index = self.gui.qtabs.currentIndex()
         self.gui.qtabs.removeTab(index)
+        self.gui.notelist_panel.remove_note_filn(old_note_filn)
+        self.notes_watcher.on_file_closed(old_note_filn)
         self.open_document(new_note_filn)
+        self.update_open_notes()
 
     def delete_note(self):
         editor = self.get_active_editor()
