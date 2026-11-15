@@ -23,6 +23,7 @@ datas = [
 datas += [(f, 'themes') for f in glob.glob('themes/*.json')]
 datas += [(f, 'zettelkasten') for f in glob.glob('zettelkasten/*')]
 datas += [(f, 'fonts') for f in glob.glob('fonts/*')]
+datas += [(f, 'dictionaries') for f in glob.glob('dictionaries/*')]
 
 binaries = []
 # pandoc, bundled by the pypandoc_binary package: keep it beside the package
@@ -39,7 +40,8 @@ try:
 except Exception:
     pass
 
-hiddenimports = collect_submodules('pygments') + collect_submodules('markdown') + ['PyQt5.QtPrintSupport']
+hiddenimports = (collect_submodules('pygments') + collect_submodules('markdown') + collect_submodules('spylls')
+                 + ['PyQt5.QtPrintSupport'])
 
 a = Analysis(
     ['src/sublimeless_zk.py'],

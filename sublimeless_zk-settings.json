@@ -154,4 +154,11 @@
     // "critic.highlight" and "critic.comment".
     "critic_markup": false,
 
+    // Spell checking: misspelled words get a red wavy underline; right-click
+    // one for suggestions or to add it to your personal dictionary.
+    // A word is fine if any of the languages knows it, so notes can mix them.
+    // Available: "en_GB" (English, UK), "es_ES" (Spanish), "fr_FR" (French)
+    "spellcheck": true,
+    "spellcheck_languages": ["en_GB", "es_ES", "fr_FR"],
+
 }

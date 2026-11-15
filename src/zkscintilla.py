@@ -173,6 +173,14 @@ class ZettelkastenScintilla(QsciScintilla):
         painter.end()
 
     continue_lists = True     # setting "continue_lists"
+    spell_underliner = None   # set by the app when spell checking is on
+
+    def contextMenuEvent(self, event):
+        menu = self.createStandardContextMenu()
+        if self.spell_underliner is not None and self.editor_type == 'normal':
+            self.spell_underliner.add_menu_entries(self, menu, event.pos())
+        menu.exec_(event.globalPos())
+        menu.deleteLater()
 
     def keyPressEvent(self, event):
         is_plain_enter = (event.key() in (Qt.Key_Return, Qt.Key_Enter)

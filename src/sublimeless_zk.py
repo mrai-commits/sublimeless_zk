@@ -42,6 +42,8 @@ import editfeatures
 import noteexport
 import cheatsheet
 from notewindow import NoteWindow
+import spellcheck
+import spellui
 
 
 class Sublimeless_Zk(QObject):
@@ -53,6 +55,7 @@ class Sublimeless_Zk(QObject):
         self.project = Project(self.app_state.recent_projects[-1])
         self._show_images_disabled = True and getattr(sys, 'frozen', False)
         self.note_windows = []          # notes shown in their own windows
+        self.spell = None               # spellui.SpellUnderliner, once started
         self._note_windows_closing = False
         self.last_note_view = None
         self.recent_projects_limit = 10
@@ -79,6 +82,8 @@ class Sublimeless_Zk(QObject):
     def init_actions(self):
         self.aboutAction = QAction('About Sublimeless Zettelkasten', self)
         self.shortcutsAction = QAction('Keyboard Shortcuts', self)
+        self.spellAction = QAction('Check Spelling', self)
+        self.spellAction.setCheckable(True)
         self.noteWindowAction = QAction('Open Note in its own Window', self)
         self.noteWindowAction.setShortcut('Ctrl+Shift+O')
         self.shortcutsAction.setShortcuts([QKeySequence(keys) for keys in self.SHORTCUTS_KEYS])
@@ -397,6 +402,7 @@ class Sublimeless_Zk(QObject):
         view.addAction(self.showRecentViewsAction)
         view.addAction(self.showReferencingNotesAction)
         view.addAction(self.noteWindowAction)
+        view.addAction(self.spellAction)
         view.addAction(self.showTagsAction)
         view.addAction(self.showTagsByCountAction)
         view.addAction(self.followLinkCloseParentAction)
@@ -431,6 +437,7 @@ class Sublimeless_Zk(QObject):
         self.aboutAction.triggered.connect(self.about)
         self.shortcutsAction.triggered.connect(self.show_shortcuts)
         self.noteWindowAction.triggered.connect(lambda: self.open_note_window())
+        self.spellAction.toggled.connect(self.set_spellcheck)
         self.gui.qtabs.tabBarDoubleClicked.connect(self.open_note_window_for_tab)
         self.app.focusChanged.connect(self.on_focus_changed)
         self.newAction.triggered.connect(self.zk_new_zettel)
@@ -614,6 +621,8 @@ class Sublimeless_Zk(QObject):
         editor.lexer().note_id_clicked.connect(self.clicked_noteid)
         editor.lexer().search_spec_clicked.connect(self.search_spec_clicked)
         editor.lexer().hyperlink_clicked.connect(self.open_hyperlink)
+        if self.spell is not None and isinstance(editor, ZettelkastenScintilla) and editor.editor_type == 'normal':
+            self.spell.attach(editor)
         editor.lexer().create_link_from_title_clicked.connect(self.create_link_from_title_clicked)
         editor.text_shortcut_handler.shortcut_insert_link.connect(self.insert_link)
         editor.text_shortcut_handler.shortcut_tag_selector.connect(self.insert_tag)
@@ -670,6 +679,11 @@ class Sublimeless_Zk(QObject):
                 pass
         self.gui.apply_font_settings(test_settings)
         self.gui.restore_layout(self.app_state.window)
+        self.start_spellcheck()
+        for i in range(self.gui.qtabs.count()):
+            editor = self.gui.qtabs.widget(i)
+            if isinstance(editor, ZettelkastenScintilla) and editor.editor_type == 'normal':
+                self.spell.attach(editor)
         exit_code = 0
 
         try:
@@ -844,6 +858,38 @@ class Sublimeless_Zk(QObject):
             if self.gui.qtabs.count():
                 return self.gui.qtabs.currentWidget()
             return None
+
+    #
+    # Spell checking
+    #
+
+    def start_spellcheck(self):
+        """Create the spell checker and load its dictionaries in the background."""
+        settings = get_settings()
+        languages = settings.get('spellcheck_languages', ['en_GB', 'es_ES', 'fr_FR'])
+        personal = os.path.join(self.app_state.home, 'sublimeless_zk.rc', 'personal_dictionary.txt')
+        checker = spellcheck.SpellChecker(os.path.join(base_dir(), 'dictionaries'), languages, personal)
+        self.spell = spellui.SpellUnderliner(checker, self)
+        self.spell.enabled = bool(settings.get('spellcheck', True))
+        self.spellAction.blockSignals(True)
+        self.spellAction.setChecked(self.spell.enabled)
+        self.spellAction.blockSignals(False)
+        # the GUI may only be touched from its own thread: poll for "ready"
+        self._spell_ready_timer = QTimer(self)
+        self._spell_ready_timer.setInterval(200)
+
+        def when_ready():
+            if checker.ready or checker.error:
+                self._spell_ready_timer.stop()
+                if checker.ready:
+                    self.spell.refresh_all()
+        self._spell_ready_timer.timeout.connect(when_ready)
+        self._spell_ready_timer.start()
+        checker.load_in_background()
+
+    def set_spellcheck(self, enabled):
+        if self.spell is not None:
+            self.spell.set_enabled(bool(enabled))
 
     #
     # Notes in their own windows
@@ -2421,6 +2467,10 @@ def self_test():
             problems.append('bundled fonts are missing')
         if not get_pandoc():
             problems.append('bundled pandoc is missing')
+        checker = spellcheck.SpellChecker(os.path.join(base_dir(), 'dictionaries'), ['en_GB', 'es_ES', 'fr_FR'])
+        if not (checker.load() and len(checker.dictionaries) == 3 and checker.check('colour')
+                and checker.check('organización') and not checker.check('recieve')):
+            problems.append(f'spell checking does not work: {checker.error}')
         if not os.path.exists(os.path.join(base_dir(), 'data', 'setevi-template.html')):
             problems.append('HTML export template is missing')
         if app.gui.qtabs.count() < 1:

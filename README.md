@@ -64,6 +64,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 * [Color Schemes](#color-schemes)
 * [Saved Searches](#saved-searches)
 * [HTML Export into a semantic text view](#html-export)
+* [Spell checking](#spell-checking) in English, Spanish, and French *(new in 1.0)*
 * [Export of a note to Word and PDF](#export-to-word-and-pdf), with nothing else to install *(new in 1.0)*
 * [Command Palette](#command-palette)
 * **New in version 1.0:** formatting shortcuts, lists that continue on <kbd>enter</kbd>, tag counts, and more: see [New in version 1.0](#new-in-version-10)
@@ -1471,6 +1472,15 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * Links clicked in a note window open in the main window, so the window keeps its note.
 * <kbd>ctrl/cmd</kbd> + <kbd>W</kbd> in a note window closes the window; the tab stays. Closing the tab closes its window.
 * The note windows that are open when you quit come back, in the same places, at the next start.
+
+#### Spell checking
+
+* Misspelled words get a red wavy underline. Right-click one for suggestions, or to add it to your personal dictionary.
+* English (UK), Spanish, and French are checked at the same time: a word is fine if one of them knows it, so your notes can mix languages. Choose the languages with `"spellcheck_languages": ["en_GB", "es_ES", "fr_FR"]`.
+* Code, links, citations, tags, and web addresses are not checked.
+* View > Check Spelling switches it off and on; `"spellcheck": false` switches it off for good.
+* Your own words are kept in `personal_dictionary.txt`, one per line, in the [settings folder](#the-settings-file).
+* The dictionaries come with the app; they are the ones LibreOffice uses. More languages can be added by putting the Hunspell `.aff` and `.dic` files into the app's `dictionaries` folder.
 
 #### CriticMarkup
 

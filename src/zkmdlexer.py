@@ -682,6 +682,11 @@ class ZkMdLexer(QsciLexerCustom):
 
         self.apply_regions(regions, orig_text)
 
+        # spell checking runs after the text is styled, once typing pauses
+        underliner = getattr(self.parent(), 'spell_underliner', None)
+        if underliner is not None:
+            underliner.request(self.parent())
+
     def apply_regions(self, regions, text):
         # sort and split regions
         regions = [r for r in regions if r[0] < r[1]] # filter out empty regions
