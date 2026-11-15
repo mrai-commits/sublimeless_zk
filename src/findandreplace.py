@@ -31,6 +31,8 @@ class FindDlg(QDialog):
         self.re = False
         self.cs = None
         self.wo = None
+        self.expr = ''
+        self.last_match = None
 
         findButton = QPushButton("Find",self)
         findButton.clicked.connect(self.find)
@@ -45,6 +47,7 @@ class FindDlg(QDialog):
 
         self.findField = FindInputLine(self)
         self.findField.setMaximumHeight(40)
+        self.findField.setTabChangesFocus(True)
 
         self.caseSens = QCheckBox("Case sensitive",self)
         if self.caseSens.isChecked():
@@ -70,6 +73,7 @@ class FindDlg(QDialog):
 
         self.replaceField = FindInputLine(self)
         self.replaceField.setMaximumHeight(40)
+        self.replaceField.setTabChangesFocus(True)
 
         optionsLabel = QLabel("Options: ",self)
 
@@ -91,10 +95,18 @@ class FindDlg(QDialog):
         layout.addWidget(self.caseSens,6,1)
         layout.addWidget(self.wholeWords,6,2)
 
+        self.resultLabel = QLabel('', self)
+        layout.addWidget(self.resultLabel,6,3)
+
         self.setGeometry(300,300,360,250)
         self.setWindowTitle("Find / Replace")
         self.setLayout(layout)
         self.findField.setFocus(True)
+        # Tab moves from the find field straight to the replace field
+        self.findButton, self.replaceButton, self.allButton = findButton, replaceButton, allButton
+        for first, second in ((self.findField, self.replaceField), (self.replaceField, findButton),
+                              (findButton, replaceButton), (replaceButton, allButton)):
+            QWidget.setTabOrder(first, second)
 
         self.findField.enter_pressed.connect(self.find)
         self.replaceField.enter_pressed.connect(self.replace)
@@ -119,26 +131,76 @@ class FindDlg(QDialog):
 
         self.re = False
 
-    def find(self):
-        # Get the text to find
+    def options(self):
+        """Read the search options at the time of the search."""
         self.expr = self.findField.toPlainText()
-        # Use QScintilla's built in find method for this
+        self.cs = self.caseSens.isChecked()
+        self.wo = self.wholeWords.isChecked()
+        return self.expr, self.re, self.cs, self.wo
+
+    def find(self):
+        """Select the next match after the cursor (wraps around)."""
         editor = self.getCurrentEditor()
-        if editor:
-            editor.findFirst(self.expr, self.re, self.cs, self.wo, True)
+        self.last_match = None
+        if not editor:
+            return False
+        expr, regex, cs, wo = self.options()
+        if not expr:
+            self.show_result('')
+            return False
+        found = editor.findFirst(expr, regex, cs, wo, True)
+        if found:
+            self.last_match = (id(editor), expr, editor.getSelection())
+            self.show_result('')
+        else:
+            self.show_result('Not found')
+        return found
+
+    def is_on_current_match(self, editor):
+        """True if the selection is still the match of the last search."""
+        return (self.last_match is not None and editor.hasSelectedText()
+                and self.last_match == (id(editor), self.findField.toPlainText(), editor.getSelection()))
 
     def replace(self):
-        self.replaceStr = self.replaceField.toPlainText()
+        """
+        Replace the highlighted match, then highlight the next one.
+        If nothing is highlighted yet, only highlight the first match.
+        """
         editor = self.getCurrentEditor()
-        if editor:
-            self.find()
-            editor.replace(self.replaceStr)
+        if not editor:
+            return
+        if self.is_on_current_match(editor):
+            editor.replace(self.replaceField.toPlainText())
+        self.find()
 
     def replaceAll(self):
-        self.replaceStr = self.replaceField.toPlainText()
         editor = self.getCurrentEditor()
-        if editor:
-            self.find()
-            while editor.findNext():
-                editor.findNext()
-                editor.replace(self.replaceStr)
+        if not editor:
+            return
+        expr, regex, cs, wo = self.options()
+        if not expr:
+            return
+        replace_str = self.replaceField.toPlainText()
+        line, index = editor.getCursorPosition()
+        count = 0
+        editor.beginUndoAction()
+        try:
+            # one pass from the top, no wrap-around: text that was already
+            # replaced is never searched again, so replacing "A" by "A B" ends
+            found = editor.findFirst(expr, regex, cs, wo, False, True, 0, 0)
+            while found:
+                before = editor.getSelection()
+                editor.replace(replace_str)
+                count += 1
+                found = editor.findNext()
+                if found and editor.getSelection() == before:
+                    break   # no progress (e.g. empty regex match)
+        finally:
+            editor.endUndoAction()
+        self.last_match = None
+        editor.setCursorPosition(min(line, editor.lines() - 1), 0)
+        self.show_result('%d replaced' % count if count else 'Not found')
+        return count
+
+    def show_result(self, msg):
+        self.resultLabel.setText(msg)
