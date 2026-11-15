@@ -106,6 +106,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE_NOTES-1.0.md
+          # v1.0-beta1 and the like are checkpoints: marked as pre-release
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             Sublimeless_ZK-*.zip
             Sublimeless_ZK-*.tar.gz
