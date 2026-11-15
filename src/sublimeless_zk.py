@@ -1215,6 +1215,10 @@ class Sublimeless_Zk(QObject):
                     QMessageBox.warning(editor, 'Pandoc not found', 'The pandoc program could not be executed. Have you installed it?\n\nCheck the setting "path_to_pandoc".')
                     return
                 ck2bib = Autobib.create_bibliography(text, bibfile, pandoc=pandoc)
+                if Autobib.last_error:
+                    QMessageBox.warning(editor, 'Auto-Bibliography', 'Pandoc reported a problem:\n\n' + Autobib.last_error[:1000])
+                    if not any(bib != '(no bib generated)' for bib in ck2bib.values()):
+                        return
                 marker = '<!-- references (auto)'
                 marker_line = marker
                 if mmd_style:

@@ -20,7 +20,8 @@ class Autobib:
     year_matcher = re.compile(r'^\s*year\s*=\s*(.*)', re.IGNORECASE)
     crossref_matcher = re.compile(r'^\s*crossref\s*=\s*(.*)', re.IGNORECASE)
 
-    citekey_stops = r"[@',\#}{~%\[\]\s]"
+    # what may follow a citekey in a text: a separator, or sentence punctuation
+    citekey_stops = r"(?=[@',;\#}{~%\[\]\s)]|[.:!?]+(?:\s|$)|$)"
 
     @staticmethod
     def look_for_bibfile(project):
@@ -181,48 +182,136 @@ class Autobib:
 
         return ''.join(chars)
 
+    # characters pandoc allows inside a citekey (after the first one)
+    citekey_candidate = re.compile(r'@([\w][\w:.#$%&\-+?<>~/]*)')
+    mmd_citekey_candidate = re.compile(r'\[#([^\]\s,;]+)')
+    _citeproc_args_cache = {}
+
     @staticmethod
     def find_citations(text, citekeys):
         """
-        Find all mentioned citekeys in text
+        Find all citekeys of the bib file that are cited in text.
+        Returns a set of '@citekey' (pandoc) and '#citekey' (MultiMarkdown).
+        Works for [@a; @b], [see @a, p. 3], [-@a], @a. and @a's.
         """
-        citekey_stops = r"[@',\#}{~%\[\]\s]"
-        citekeys_re = [re.escape('@' + citekey) for citekey in citekeys]
-        citekeys_re.extend([re.escape('[#' + citekey) for citekey in citekeys])
-        citekeys_re = [ckre + citekey_stops for ckre in citekeys_re]
-        finder = re.compile('|'.join(citekeys_re))
-        founds_raw = finder.findall(text)
-        founds = []
-        for citekey in founds_raw:
-            if citekey.startswith('[#'):
-                citekey = citekey[1:]
-            founds.append(citekey[:-1])
-        founds = set(founds)
+        citekeys = set(citekeys)
+        founds = set()
+        for match in Autobib.citekey_candidate.finditer(text):
+            candidate = match.group(1)
+            # a key can contain punctuation but never ends with it:
+            # shorten until it is a known key
+            while candidate and candidate not in citekeys and not candidate[-1].isalnum():
+                candidate = candidate[:-1]
+            if candidate in citekeys:
+                founds.add('@' + candidate)
+        for match in Autobib.mmd_citekey_candidate.finditer(text):
+            if match.group(1) in citekeys:
+                founds.add('#' + match.group(1))
         return founds
+
+    @staticmethod
+    def citeproc_args(pandoc_bin):
+        """
+        Arguments that switch on citation processing. pandoc 2.11 and later
+        have it built in (--citeproc); older versions need the separate
+        pandoc-citeproc filter, which no longer exists for current versions.
+        """
+        if pandoc_bin in Autobib._citeproc_args_cache:
+            return Autobib._citeproc_args_cache[pandoc_bin]
+        version = (99, 0)
+        try:
+            out = Popen([pandoc_bin, '--version'], stdout=PIPE, stderr=PIPE).communicate()[0]
+            match = re.search(r'pandoc(?:\.exe)?\s+(\d+)\.(\d+)', out.decode('utf-8', errors='ignore'))
+            if match:
+                version = (int(match.group(1)), int(match.group(2)))
+        except Exception:
+            pass
+        if version >= (2, 11):
+            args = ['--citeproc']
+        else:
+            args = ['--filter', os.path.join(os.path.dirname(pandoc_bin), 'pandoc-citeproc')]
+        Autobib._citeproc_args_cache[pandoc_bin] = args
+        return args
 
     @staticmethod
     def create_bibliography(text, bibfile, pandoc='pandoc'):
         """
-        Create a bibliography for all citations in text in form of a dictionary.
+        Create a bibliography for all citations in text in form of a dictionary
+        {'@citekey': 'formatted reference'}. Runs pandoc once for all of them.
         """
         citekeys = Autobib.extract_all_citekeys(bibfile)
         if not citekeys:
             return {}
-        citekeys = Autobib.find_citations(text, citekeys)
+        cited = Autobib.find_citations(text, citekeys)
+        if not cited:
+            return {}
+        keys = sorted({citekey[1:] for citekey in cited})
+        pandoc_input = '---\nnocite: |\n  {}\n---\n'.format(', '.join('@' + key for key in keys))
+        args = [pandoc, '-f', 'markdown', '-t', 'html']
+        args += Autobib.citeproc_args(pandoc) + ['--bibliography', bibfile]
+        html_out = Autobib.run_pandoc(args, pandoc_input)
+        key2bib = Autobib.parse_references_html(html_out)
         citekey2bib = {}
-        for citekey in citekeys:
-            pandoc_input = citekey.replace('#', '@', 1)
-            pandoc_out = Autobib.run(pandoc, bibfile, pandoc_input)
-            citation, bib = Autobib.parse_pandoc_out(pandoc_out)
-            citekey2bib[citekey] = bib
+        for citekey in cited:
+            citekey2bib[citekey] = key2bib.get(citekey[1:], '(no bib generated)')
         return citekey2bib
+
+    @staticmethod
+    def parse_references_html(html_out):
+        """
+        Extract {citekey: reference text} from pandoc's HTML bibliography,
+        where every entry is a <div id="ref-CITEKEY" class="csl-entry">.
+        Emphasis is kept as Markdown (*title*).
+        """
+        from html.parser import HTMLParser
+
+        class RefParser(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.entries = {}
+                self.key = None
+                self.depth = 0
+                self.parts = []
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                if self.key is None:
+                    if tag == 'div' and (attrs.get('id') or '').startswith('ref-') \
+                            and 'csl-entry' in (attrs.get('class') or ''):
+                        self.key = attrs['id'][4:]
+                        self.depth = 1
+                        self.parts = []
+                    return
+                if tag == 'div':
+                    self.depth += 1
+                    self.parts.append(' ')
+                elif tag in ('em', 'i'):
+                    self.parts.append('*')
+
+            def handle_endtag(self, tag):
+                if self.key is None:
+                    return
+                if tag in ('em', 'i'):
+                    self.parts.append('*')
+                elif tag == 'div':
+                    self.depth -= 1
+                    if self.depth == 0:
+                        self.entries[self.key] = ' '.join(''.join(self.parts).split())
+                        self.key = None
+
+            def handle_data(self, data):
+                if self.key is not None:
+                    self.parts.append(data)
+
+        parser = RefParser()
+        parser.feed(html_out)
+        return parser.entries
 
     @staticmethod
     def parse_pandoc_out(pandoc_out):
         """
         Splits pandoc output into citation and bib part
         """
-        #print('pandoc_out:', repr(pandoc_out))
         pdsplit = pandoc_out.split('\n\n')
         citation = '(no citation generated)'
         bib =  '(no bib generated)'
@@ -236,13 +325,15 @@ class Autobib:
 
     @staticmethod
     def run(pandoc_bin, bibfile, stdin):
+        """Plain-text citation and reference for the citations in stdin."""
+        args = [pandoc_bin, '-t', 'plain'] + Autobib.citeproc_args(pandoc_bin) + ['--bibliography', bibfile]
+        return Autobib.run_pandoc(args, stdin)
+
+    @staticmethod
+    def run_pandoc(args, stdin):
         stdout = ''
         stderr = ''
         try:
-            args = [pandoc_bin, '-t', 'plain',
-                    f'--filter',
-                    f'{os.path.join(os.path.dirname(pandoc_bin), "pandoc-citeproc")}',
-                    '--bibliography', bibfile]
             # using universal_newlines here gets us into decoding troubles as the
             # encoding then is guessed and can be ascii which can't deal with
             # unicode characters. hence, we handle \r ourselves
@@ -251,17 +342,27 @@ class Autobib:
             # make me windows-safe
             stdout = stdout.decode('utf-8', errors='ignore').replace('\r', '')
             stderr = stderr.decode('utf-8', errors='ignore').replace('\r', '')
-            # print('pandoc says:', stderr)
+            if p.returncode != 0:
+                Autobib.last_error = stderr.strip()
+                Autobib.log_exception(f'{args}\n{stderr}')
+            else:
+                Autobib.last_error = ''
         except FileNotFoundError:
-            print(f'Pandoc executable ({pandoc_bin}) not found')
+            Autobib.last_error = f'Pandoc executable ({args[0]}) not found'
+            print(Autobib.last_error)
             Autobib.log_exception(args, True)
         except:
+            Autobib.last_error = traceback.format_exc()
             Autobib.log_exception(args, True)
         return stdout
 
+    last_error = ''
+
     @staticmethod
     def log_exception(arg, exception=False):
-        with open('/tmp/sublimeless_zk-exception.txt', 'a', encoding='utf-8', errors='ignore') as f:
+        import tempfile
+        log_filn = os.path.join(tempfile.gettempdir(), 'sublimeless_zk-exception.txt')
+        with open(log_filn, 'a', encoding='utf-8', errors='ignore') as f:
             f.write(f'{arg}\n')
             if exception:
                 f.write(traceback.format_exc())

@@ -180,7 +180,13 @@ class Autobib:
 
     @staticmethod
     def run(pandoc_bin, bibfile, stdin):
-        args = [pandoc_bin, '-t', 'plain', '--bibliography', bibfile]
+        # pandoc 2.11+ only processes citations when asked to
+        try:
+            from autobib import Autobib as MainAutobib
+            citeproc = MainAutobib.citeproc_args(pandoc_bin)
+        except ImportError:
+            citeproc = ['--citeproc']
+        args = [pandoc_bin, '-t', 'plain'] + citeproc + ['--bibliography', bibfile]
         # using universal_newlines here gets us into decoding troubles as the
         # encoding then is guessed and can be ascii which can't deal with
         # unicode characters. hence, we handle \r ourselves

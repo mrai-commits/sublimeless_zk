@@ -33,7 +33,7 @@ BIB = r'''
 }
 '''
 
-def check(name, got, want):
+def check(name, got, want=True):
     ok = got == want
     print('ok  ' if ok else 'FAIL', name, '' if ok else '(got %r, want %r)' % (got, want))
     return ok
@@ -49,4 +49,28 @@ results = [
     check('crossref: missing parent is harmless', e['dangling']['title'], 'No parent'),
     check('editor-only entry', e['editor2019']['editors'], 'Editor'),
 ]
+
+# --- citations in a text (item 6: keys separated by ";")
+import shutil
+keys = Autobib.extract_all_citekeys(f.name)
+TEXT = ('A [@reason2013a; @editor2019] b [-@own2020, p. 3] c @reason2013. '
+        'd [e.g., @editor2019] mail a@b.com and @unknown2000')
+cited = Autobib.find_citations(TEXT, keys)
+results += [
+    check('two keys separated by ; are both found', {'@reason2013a', '@editor2019'} <= cited),
+    check('key followed by a period is found', '@reason2013' in cited),
+    check('suppressed-author citation is found', '@own2020' in cited),
+    check('unknown keys and e-mail addresses are ignored', sorted(cited),
+          ['@editor2019', '@own2020', '@reason2013', '@reason2013a']),
+]
+if shutil.which('pandoc'):
+    bib = Autobib.create_bibliography(TEXT, f.name, pandoc=shutil.which('pandoc'))
+    results += [
+        check('pandoc: no error', Autobib.last_error, ''),
+        check('pandoc: one reference per cited key', sorted(bib), sorted(cited)),
+        check('pandoc: reference text', bib.get('@editor2019'), 'Editor, Only, ed. 2019. *Edited Volume*.'),
+        check('pandoc: crossref chapter names the book editors', 'Reason' in bib.get('@reason2013a', '')),
+    ]
+else:
+    print('skip pandoc tests: pandoc not installed')
 sys.exit(0 if all(results) else 1)
