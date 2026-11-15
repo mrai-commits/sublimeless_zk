@@ -4,8 +4,39 @@ from PyQt5.QtWidgets import *
 from fuzzyfinder import fuzzyfinder
 
 
-def fuzzymatch(string, stringlist):
-    pass
+def fold(text):
+    """Lower case without accents, so that "gumusay" finds "Gümüsay"."""
+    import unicodedata
+    return ''.join(c for c in unicodedata.normalize('NFKD', text.lower()) if not unicodedata.combining(c))
+
+
+def find_items(search_string, items, max_items):
+    """
+    Entries matching what the user typed, best first:
+    1. entries that contain every typed word (in any order, ignoring case
+       and accents), e.g. "weick 1995 sense" for one paper among many of the
+       same author;
+    2. then loose "fuzzy" matches, as before.
+    """
+    items = list(items)
+    words = fold(search_string).split()
+    if not words:
+        return items[:max_items]
+    exact = []
+    for item in items:
+        folded = fold(item)
+        if all(word in folded for word in words):
+            exact.append(item)
+            if len(exact) >= max_items:
+                return exact
+    if len(exact) < max_items:
+        seen = set(exact)
+        for item in fuzzyfinder(search_string, items):
+            if item not in seen:
+                exact.append(item)
+                if len(exact) >= max_items:
+                    break
+    return exact
 
 class PanelInputLine(QLineEdit):
     down_pressed = pyqtSignal()
@@ -92,7 +123,7 @@ class FuzzySearchPanel(QWidget):
     def text_changed(self):
         search_string = self.input_line.text()
         if search_string:
-            self.fuzzy_items = list(fuzzyfinder(search_string, self.item_dict.keys()))[:self.max_items]
+            self.fuzzy_items = find_items(search_string, self.item_dict.keys(), self.max_items)
         else:
             self.fuzzy_items = list(self.item_dict.keys())[:self.max_items]
         self.update_listbox()

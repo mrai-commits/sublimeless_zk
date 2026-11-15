@@ -23,7 +23,7 @@ from settingseditor import SettingsEditor
 from project import Project
 from appstate import AppState
 from zkscintilla import ZettelkastenScintilla
-from inputpanel import show_input_panel
+from inputpanel import show_input_panel, show_tag_search_panel
 from fuzzypanel import show_fuzzy_panel
 from autobib import Autobib
 from textproduction import TextProduction
@@ -35,7 +35,7 @@ from findandreplace import FindDlg
 from semantic_zk import SemanticZKDialog
 from custmenuitem import CustomMenuItemAction
 from buildcommands import BuildCommands
-from zkutils import sanitize_filename, split_search_terms, open_hyperlink
+from zkutils import sanitize_filename, split_search_terms, open_hyperlink, compile_file_search
 from findrefcountdlg import show_find_refcount_dlg
 from notewatcher import NotesWatcher
 import editfeatures
@@ -146,6 +146,9 @@ class Sublimeless_Zk(QObject):
         self.followLinkCloseParentAction = QAction('Follow Link and close this note', self)
 
         self.showTagsByCountAction = QAction('Show all Tags by number of notes', self)
+
+        self.insertReferenceAction = QAction('Insert Full Reference...', self)
+        self.insertReferenceAction.setShortcut('Ctrl+Alt+R')
 
         if not self._show_images_disabled:
             self.showImagesAction = QAction('Show Images', self)
@@ -360,6 +363,7 @@ class Sublimeless_Zk(QObject):
         edit.addAction(self.insertLinkAltAction)
         edit.addAction(self.insertTagAction)
         edit.addAction(self.insertCitationAction)
+        edit.addAction(self.insertReferenceAction)
         edit.addAction(self.expandLinkAction)
         edit.addAction(self.autoBibAction)
         edit.addAction(self.autoTocAction)
@@ -425,6 +429,7 @@ class Sublimeless_Zk(QObject):
         self.showTagsAction.triggered.connect(self.show_all_tags)
         self.expandLinkAction.triggered.connect(self.expand_link)
         self.insertCitationAction.triggered.connect(self.insert_citation)
+        self.insertReferenceAction.triggered.connect(self.insert_full_reference)
         self.expandOverviewNoteAction.triggered.connect(self.expand_overview_note)
         self.refreshExpandedNoteAction.triggered.connect(self.refresh_expanded_note)
         self.advancedTagSearchAction.triggered.connect(self.advanced_tag_search)
@@ -506,6 +511,7 @@ class Sublimeless_Zk(QObject):
             Qt.AltModifier | Qt.Key_L,
             Qt.AltModifier | Qt.Key_B,
             Qt.AltModifier | Qt.Key_N,
+            Qt.AltModifier | Qt.Key_R,
             Qt.ShiftModifier | Qt.Key_I,
             Qt.ShiftModifier | Qt.Key_H,
             Qt.ShiftModifier | Qt.Key_T,
@@ -1343,6 +1349,47 @@ class Sublimeless_Zk(QObject):
         text = fmt_completion.format(citekey)
         editor.replaceSelectedText(text)
 
+    def choose_citekey(self, title='Insert Citation'):
+        """Let the user pick an entry of the bib file; returns its citekey or None."""
+        bibfile = Autobib.look_for_bibfile(self.project)
+        if not bibfile:
+            self.notify('No .bib file found: see "bibfile" in the settings')
+            return None
+        if self.bib_entries is None:
+            self.bib_entries = Autobib.extract_all_entries(bibfile)
+        choices = {}
+        for citekey, entry in self.bib_entries.items():
+            authors = entry['authors'] or entry['editors']
+            choices[f"{authors} {entry['year']} - {entry['title']} ({citekey})"] = citekey
+        _, citekey = show_fuzzy_panel(self.gui.qtabs, title, choices, longlines=True, manylines=True)
+        return citekey
+
+    def insert_full_reference(self):
+        """
+        Insert the formatted reference of a source at the cursor, e.g.
+        "Smith, John. 2020. A Book. Publisher." (as in the bibliography).
+        """
+        editor = self.get_active_editor()
+        if not isinstance(editor, ZettelkastenScintilla) or editor.editor_type != 'normal':
+            return
+        citekey = self.choose_citekey('Insert Full Reference')
+        if not citekey:
+            return
+        pandoc = get_pandoc()
+        if not pandoc:
+            QMessageBox.warning(self.gui, 'Insert Full Reference', 'Pandoc was not found.')
+            return
+        bibfile = Autobib.look_for_bibfile(self.project)
+        references = Autobib.create_bibliography('@' + citekey, bibfile, pandoc=pandoc)
+        reference = references.get('@' + citekey)
+        if not reference or reference == '(no bib generated)':
+            QMessageBox.warning(self.gui, 'Insert Full Reference',
+                                'Pandoc could not format this entry.\n\n' + Autobib.last_error[:1000])
+            return
+        editor.insert(reference)
+        line, index = editor.getCursorPosition()
+        editor.setCursorPosition(line, index + len(reference))
+
     def auto_bib(self):
         editor = self.get_active_editor()
         if not editor:
@@ -1603,7 +1650,9 @@ class Sublimeless_Zk(QObject):
 
     def advanced_tag_search(self, search_spec=None):
         if not search_spec:
-            search_spec = show_input_panel(None, '#tags and not !#tags:', '')
+            _, tags2ids = self.project.find_all_notes_all_tags()
+            tag_counts = {tag: len(set(ids)) for tag, ids in tags2ids.items()}
+            search_spec = show_tag_search_panel(self.gui, '#tags and not !#tags:', tag_counts)
         if not search_spec:
             return
         # get search attrs and strip them from search term
@@ -1704,20 +1753,13 @@ class Sublimeless_Zk(QObject):
             return
         orig_search_terms = search_terms
 
-        search_terms = search_terms.lower()
-        search_terms = split_search_terms(search_terms)
+        matches = compile_file_search(search_terms, self.project.settings.get('search_comma_is_and', True))
 
         note_files = self.project.get_all_note_files()
         result_notes = []
         for note in note_files:
             with open(note, mode='r', encoding='utf-8', errors='ignore') as f:
-                text = f.read().lower()
-                for presence, search_term in search_terms:
-                    if presence and search_term not in text:
-                        break
-                    elif not presence and search_term in text:
-                        break
-                else:
+                if matches(f.read()):
                     result_notes.append(note)
         self.project.externalize_note_links(result_notes, f'# {len(result_notes)} Notes matching search ' + orig_search_terms, sort=sort, order=order)
         self.reload(self.gui.search_results_editor)
@@ -1809,6 +1851,8 @@ class Sublimeless_Zk(QObject):
             # close tab
             index = self.gui.qtabs.currentIndex()
             self.gui.qtabs.removeTab(index)
+            self.gui.notelist_panel.remove_note_filn(editor.file_name)
+            self.notes_watcher.on_file_closed(editor.file_name)
 
     def export_note(self, kind, out_path=None, open_result=True):
         """

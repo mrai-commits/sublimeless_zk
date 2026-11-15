@@ -140,4 +140,12 @@
     // Page size of "Export Note to PDF": "A4" or "Letter"
     "pdf_page_size": "A4",
 
+    // Find in files uses the same rules as the tag search:
+    //    apple pear, plum     (apple or pear) and plum
+    //    ""apple pie""          the exact phrase
+    //    !!plum               not plum
+    //    organi*ation         * = any letters, ? = one letter
+    // Set to false for the rule before 1.0: all words must be found.
+    "search_comma_is_and": true,
+
 }

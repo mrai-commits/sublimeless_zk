@@ -246,6 +246,7 @@ This app comes with sane defaults. You can start using it right away. Once you h
 * [New note from text, keeping the text](#new-notes-and-links) Select text, then <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd> *(new in 1.0)*
 * [Insert link, title the other way round](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd> *(new in 1.0)*
 * [Open link and close the current note](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + click, or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> *(new in 1.0)*
+* [Insert a full reference](#citations) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>R</kbd> *(new in 1.0)*
 * [Open the notes citing a source](#citations) <kbd>ctrl/cmd</kbd> + click the @citekey *(changed in 1.0)*
 
 ### User Interface
@@ -1444,12 +1445,18 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * Citations with a prefix or without author are recognized and highlighted: `[-@smith2020]`, `[e.g., @smith2020, p. 3; @miller2019]`. Each citekey is clickable on its own.
 * A plain click into a citation places the cursor, so you can edit it. <kbd>ctrl/cmd</kbd> + click opens the notes citing the source. Use `"citations_need_cmd_click": false` to go back to the plain click.
 * The [automatic bibliography](#automatic-bibliographies) works with current versions of pandoc and is produced in one go, which is much faster for long notes.
+* <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>R</kbd> lets you pick a source and inserts its full reference at the cursor, e.g. `Weick, Karl E. 1995. Sensemaking in Organizations. Sage.`
+* In the citation list, and in all other selection lists, type several words to narrow down quickly: `weick 1995` or `sensemaking weick`. Case and accents don't matter (`gumusay` finds Gümüsay).
 * `.bib` entries that use `crossref`, e.g. chapters of an edited book exported by BibDesk, show the editors and year of the book in the citation list.
 
 #### Tags, searching, and history
 
 * `#!` shows the number of notes beside each tag: `* #tag (12)`. View > Show all Tags by number of notes sorts by that number; `"tag_list_sort": "count"` makes this the default.
 * The periods of the [recently opened notes](#browsing-recently-opened-notes) are a setting, in hours: `"recent_notes_hours": [1, 6, 24, 168, 720]`.
+* [Find in files](#find-in-files) follows the same rules as the [tag search](#advanced-tag-search): a space means *or*, a comma means *and*. `apple pear, plum` finds notes containing apple or pear, and also plum. `!!plum` means *not*, `""apple pie""` is an exact phrase. `"search_comma_is_and": false` brings back the old rule that all words must be found.
+* Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking.
+* The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it.
+* Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
 
 #### Export to Word and PDF
