@@ -137,4 +137,7 @@
     //    Sort by "name" or by "count" (most used first)
     "tag_list_sort": "name",
 
+    // Page size of "Export Note to PDF": "A4" or "Letter"
+    "pdf_page_size": "A4",
+
 }

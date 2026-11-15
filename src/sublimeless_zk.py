@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.Qsci import *
 from PyQt5.QtCore import Qt
-from PyQt5.QtCore import QObject, QTimer, QEventLoop
+from PyQt5.QtCore import QObject, QTimer, QEventLoop, QUrl
 import re
 import unicodedata
 from collections import Counter
@@ -39,6 +39,7 @@ from zkutils import sanitize_filename, split_search_terms, open_hyperlink
 from findrefcountdlg import show_find_refcount_dlg
 from notewatcher import NotesWatcher
 import editfeatures
+import noteexport
 
 
 class Sublimeless_Zk(QObject):
@@ -198,6 +199,8 @@ class Sublimeless_Zk(QObject):
         self.deleteNoteAction = QAction('Delete Note...', self)
 
         self.exportHtmlAction = QAction('Export  archive to HTML...', self)
+        self.exportDocxAction = QAction('Export Note to Word...', self)
+        self.exportPdfAction = QAction('Export Note to PDF...', self)
 
         self.quitApplicationAction = QAction('Exit...', self)
         self.quitApplicationAction.setShortcut('Ctrl+Q')
@@ -316,6 +319,8 @@ class Sublimeless_Zk(QObject):
         self.file_menu.addAction(self.renameNoteAction)
         self.file_menu.addAction(self.deleteNoteAction)
         self.file_menu.addSeparator()
+        self.file_menu.addAction(self.exportDocxAction)
+        self.file_menu.addAction(self.exportPdfAction)
         self.file_menu.addAction(self.exportHtmlAction)
         self.file_menu.addSeparator()
         # here go the most recents
@@ -451,6 +456,8 @@ class Sublimeless_Zk(QObject):
         self.renameNoteAction.triggered.connect(self.rename_note)
         self.deleteNoteAction.triggered.connect(self.delete_note)
         self.exportHtmlAction.triggered.connect(self.export_to_html)
+        self.exportDocxAction.triggered.connect(lambda: self.export_note('docx'))
+        self.exportPdfAction.triggered.connect(lambda: self.export_note('pdf'))
         self.quitApplicationAction.triggered.connect(self.quit_application)
         self.commandPaletteAction.triggered.connect(self.show_command_palette)
         self.showHideSidePanelAction.triggered.connect(self.show_hide_sidepanel)
@@ -1801,6 +1808,43 @@ class Sublimeless_Zk(QObject):
             # close tab
             index = self.gui.qtabs.currentIndex()
             self.gui.qtabs.removeTab(index)
+
+    def export_note(self, kind, out_path=None, open_result=True):
+        """
+        Export the current note to Word (kind 'docx') or PDF (kind 'pdf').
+        Citations are formatted and a list of references is added if a
+        bib file is configured.
+        """
+        editor = self.get_active_editor()
+        if not isinstance(editor, ZettelkastenScintilla) or editor.editor_type != 'normal' or not editor.file_name:
+            self.notify('Open the note you want to export first')
+            return None
+        if out_path is None:
+            suggestion = os.path.splitext(editor.file_name)[0] + '.' + kind
+            caption = 'Export Note to Word' if kind == 'docx' else 'Export Note to PDF'
+            file_filter = 'Word document (*.docx)' if kind == 'docx' else 'PDF document (*.pdf)'
+            out_path, _ = QFileDialog.getSaveFileName(self.gui, caption, suggestion, file_filter)
+            if not out_path:
+                return None
+            if not out_path.lower().endswith('.' + kind):
+                out_path += '.' + kind
+        settings = self.project.settings
+        bibfile = Autobib.look_for_bibfile(self.project)
+        pandoc = get_pandoc()
+        note_folder = os.path.dirname(editor.file_name)
+        try:
+            if kind == 'docx':
+                noteexport.export_docx(editor.text(), out_path, pandoc, bibfile, note_folder)
+            else:
+                noteexport.export_pdf(editor.text(), out_path, pandoc, bibfile, note_folder,
+                                      page_size=settings.get('pdf_page_size', 'A4'))
+        except noteexport.ExportError as e:
+            QMessageBox.warning(self.gui, 'Export', str(e))
+            return None
+        self.notify(f'Exported to {out_path}')
+        if open_result:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(out_path))
+        return out_path
 
     def export_to_html(self):
         dlg = SemanticZKDialog(None, 'Export notes to HTML', self.project)

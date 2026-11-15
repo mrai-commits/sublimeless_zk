@@ -4,7 +4,7 @@ jstyleson==0.0.2
 Markdown==3.11
 Pygments==2.21.0
 pymmd==0.4.0
-pypandoc==1.17
+pypandoc_binary==1.17
 PyQt5==5.15.11
 PyQtWebEngine==5.15.7
 QScintilla==2.14.1

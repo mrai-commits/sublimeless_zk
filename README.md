@@ -62,6 +62,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 * [Color Schemes](#color-schemes)
 * [Saved Searches](#saved-searches)
 * [HTML Export into a semantic text view](#html-export)
+* [Export of a note to Word and PDF](#export-to-word-and-pdf), with nothing else to install *(new in 1.0)*
 * [Command Palette](#command-palette)
 * **New in version 1.0:** formatting shortcuts, lists that continue on <kbd>enter</kbd>, tag counts, and more: see [New in version 1.0](#new-in-version-10)
 * [**External Commands:**](#external-commands)
@@ -1455,6 +1456,14 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * `#!` shows the number of notes beside each tag: `* #tag (12)`. View > Show all Tags by number of notes sorts by that number; `"tag_list_sort": "count"` makes this the default.
 * The periods of the [recently opened notes](#browsing-recently-opened-notes) are a setting, in hours: `"recent_notes_hours": [1, 6, 24, 168, 720]`.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
+
+#### Export to Word and PDF
+
+* File > Export Note to Word... and File > Export Note to PDF... save the current note as a `.docx` or `.pdf` file and open it.
+* Nothing needs to be installed for this: pandoc comes with the app, and the PDF is produced by the app itself, without LaTeX.
+* If you use a [`.bib` file](#location-of-your-bib-file), citations like `[@smith2020]` are written out, e.g. as (Smith 2020), and the list of references is added at the end.
+* Images are found if their path is relative to the note. The PDF page size is A4; use `"pdf_page_size": "Letter"` for US Letter.
+* The PDF has a plain layout made for reading and sharing. For fine control over the layout, export to Word, or use an [external command](#external-commands).
 
 #### User interface
 

@@ -55,14 +55,36 @@ def get_real_error_lineno(txt, lineno):
     return line_index + 1
 
 
+_pandoc_cache = {}
+
+
 def get_pandoc():
-    settings = get_settings()
-    guesses = [settings.get('path_to_pandoc', 'pandoc')]
-    guesses.extend(['pandoc', '/usr/local/bin/pandoc', '/usr/bin/pandoc'])
-    for attempt in guesses:
-        if os.system(f'{attempt} --help') == 0:
-            return attempt
-    return None
+    """
+    Path of the pandoc program, or None. Order: the path in the settings,
+    the pandoc that is bundled with the app, pandoc on the PATH, and the
+    usual installation folders (Homebrew on Apple Silicon and Intel Macs).
+    """
+    import shutil
+    configured = get_settings().get('path_to_pandoc', '') or ''
+    if configured in _pandoc_cache:
+        return _pandoc_cache[configured]
+    candidates = [configured]
+    try:
+        import pypandoc
+        bundled = os.path.join(os.path.dirname(pypandoc.__file__), 'files',
+                               'pandoc.exe' if sys.platform == 'win32' else 'pandoc')
+        candidates.append(bundled)
+    except Exception:
+        pass
+    candidates.append(shutil.which('pandoc') or '')
+    candidates.extend(['/opt/homebrew/bin/pandoc', '/usr/local/bin/pandoc', '/usr/bin/pandoc'])
+    found = None
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            found = candidate
+            break
+    _pandoc_cache[configured] = found
+    return found
 
 
 # todo make QObject that emits settings changed / slot interface for eg Project class
