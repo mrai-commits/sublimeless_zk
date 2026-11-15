@@ -184,6 +184,22 @@ def test_follow_link_close_parent(app):        # item 25
     check('parent note is closed', any('Second' in n for n in names), False)
 
 
+def test_click_link_close_parent(app):         # item 25, with the mouse
+    app.save_all()
+    e = app.open_document(N2); app.app.processEvents()
+    both = int(Qt.ControlModifier | Qt.ShiftModifier)
+    e.lexer().on_click_indicator(3, 10, both)   # Cmd/Ctrl+Shift+click on [[201801010401]]
+    app.app.processEvents()
+    names = [app.gui.qtabs.tabText(i) for i in range(app.gui.qtabs.count())]
+    check('Cmd+Shift+click opens the target', os.path.basename(app.get_active_editor().file_name), '201801010401 Features.md')
+    check('and closes the parent note', any('Second' in n for n in names), False)
+    e = app.open_document(N2); app.app.processEvents()
+    e.lexer().on_click_indicator(3, 10, 0)
+    app.app.processEvents()
+    names = [app.gui.qtabs.tabText(i) for i in range(app.gui.qtabs.count())]
+    check('a plain click keeps the parent open', any('Second' in n for n in names), True)
+
+
 def test_citation_needs_modifier(app):         # item 41
     e = app.open_document(N2); app.app.processEvents()
     clicked = []
@@ -200,4 +216,4 @@ def test_citation_needs_modifier(app):         # item 41
 run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
-               test_citation_needs_modifier])
+               test_click_link_close_parent, test_citation_needs_modifier])

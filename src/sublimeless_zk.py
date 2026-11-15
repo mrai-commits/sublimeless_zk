@@ -710,7 +710,18 @@ class Sublimeless_Zk(QObject):
             self.show_referencing_notes(noteid)
         else:
             if filn:
-                return self.open_document(filn)
+                # Cmd/Ctrl+Shift+click: open the note and close the one the link is in
+                parent = None
+                if ctrl and shift:
+                    lexer = self.sender()
+                    parent = lexer.parent() if lexer is not None else self.get_active_editor()
+                editor = self.open_document(filn)
+                if isinstance(parent, ZettelkastenScintilla) and parent.editor_type == 'normal' \
+                        and parent is not editor:
+                    index = self.gui.qtabs.indexOf(parent)
+                    if index >= 0:
+                        self.tab_close_requested(index)
+                return editor
             self.notify(f'There is no note with the ID {noteid}')
 
     def clicked_tag(self, tag, ctrl, alt, shift):
