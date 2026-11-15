@@ -1,4 +1,5 @@
 import re
+import bisect
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt
@@ -30,6 +31,8 @@ class ZkMdLexer(QsciLexerCustom):
         self.show_block_quotes = show_block_quotes
         self.settings_mode = settings_mode
         self.headings = []
+        self._wide_positions = []
+        self._wide_extra = [0]
         self.settings = get_settings()
         self.double_brackets = self.settings.get('double_brackets', True)
         editor = self.parent()
@@ -146,16 +149,68 @@ class ZkMdLexer(QsciLexerCustom):
         # Tell the editor which indicator-style to use
         # (pass it the indicator-style ID number)
         editor = self.parent()
-        text = editor.text()
 
         editor.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, indicator_id)
         # Assign a value to the text
-        b_start = len(bytearray(text[:startpos], 'utf-8').decode('ascii', errors='replace'))
-        b_length = len(bytearray(text[startpos:startpos + length], 'utf-8').decode('ascii', errors='replace'))
+        b_start = self.bytepos(startpos)
+        b_length = self.bytepos(startpos + length) - b_start
 
         editor.SendScintilla(QsciScintilla.SCI_SETINDICATORVALUE, startpos)
         # Now apply the indicator-style on the chosen text
         editor.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, b_start, b_length)
+
+    non_ascii_re = re.compile(r'[^\x00-\x7f]')
+    # a pandoc citation in brackets: anything may precede a key ("e.g., ",
+    # "see ", "-") as long as the @ does not follow a letter or digit
+    # (that would be an e-mail address); or a MultiMarkdown [#key]
+    citation_re = re.compile(r'\[(?:[^\]\[\n@]*[^\]\[\n@\w])?@[^\]\[\n]*\]|\[[a-zA-Z:\.\s]*#[^\]\[\n]*\]')
+    citekey_in_citation_re = re.compile(r'-?(?P<key>(?<![\w])[@#][\w][\w:.#$%&\-+?<>~/]*)')
+    citekey_at_click_re = re.compile(r'[@#][\w][\w:.#$%&\-+?<>~/]*')
+    hyperlink_at_click_re = re.compile(r'[^)\n]*')
+
+    list_item_re = re.compile(r'^([ \t]+)?([\*-]|[0-9\.]+?\.)([ \t]+[^\n]+?)$', flags=re.MULTILINE)
+    list_cont_line_re = re.compile(r'(^[ \t]+)([^-\* \t\n])([^\n]*)$', flags=re.MULTILINE)
+
+    @staticmethod
+    def blank_out(text, spans, char='x'):
+        """
+        Return text with every (start, end) span overwritten by char, so that
+        later patterns do not match there again. One pass, however many spans.
+        """
+        if not spans:
+            return text
+        parts = []
+        pos = 0
+        for start, end in sorted(spans):
+            if start < pos:
+                start = pos
+            if end <= start:
+                continue
+            parts.append(text[pos:start])
+            parts.append(char * (end - start))
+            pos = end
+        parts.append(text[pos:])
+        return ''.join(parts)
+
+    def prepare_byte_offsets(self, text):
+        """
+        Scintilla counts in UTF-8 bytes, Python in characters. Remember where
+        the multi-byte characters of text are, so that bytepos() is cheap.
+        Called once per styling run.
+        """
+        self._wide_positions = []     # character index of each non-ASCII char
+        self._wide_extra = [0]        # extra bytes before and including it
+        extra = 0
+        for match in self.non_ascii_re.finditer(text):
+            extra += len(match.group().encode('utf-8')) - 1
+            self._wide_positions.append(match.start())
+            self._wide_extra.append(extra)
+
+    def bytepos(self, charpos):
+        """Byte position in the editor of the character index charpos."""
+        if not self._wide_positions:
+            return charpos
+        return charpos + self._wide_extra[bisect.bisect_left(self._wide_positions, charpos)]
 
     def on_click_indicator(self, line, index, keys):
         #print('click', line, index, type(keys))
@@ -198,18 +253,18 @@ class ZkMdLexer(QsciLexerCustom):
                 link_title = match.group(1)
                 self.create_link_from_title_clicked.emit(link_title, ctrl, alt, shift, only_notetitle_pos, len(link_title))
         elif citekey_pos:
-            p = re.compile(r'([a-zA-Z:\.\s]*)(@|#)([^]\n]*)(\])')
-            match = p.match(self.parent().text()[citekey_pos:citekey_pos + 100])
+            match = self.citekey_at_click_re.match(self.parent().text(), citekey_pos)
             if match:
-                citekey = match.group()[:-1]
-                # emit tag clicked signal
+                # a key never ends with punctuation ("@key." or "@key,")
+                citekey = match.group()
+                while len(citekey) > 2 and not citekey[-1].isalnum():
+                    citekey = citekey[:-1]
                 self.cite_key_clicked.emit(citekey, ctrl, alt, shift)
         elif hyperlink_pos:
-            p = re.compile(r'.*?\)')
-            match = p.match(self.parent().text()[hyperlink_pos:hyperlink_pos + 200])
-            if match:
-                hyperlink = match.group()[:-1]
-                self.hyperlink_clicked.emit(hyperlink)
+            # no length limit: long addresses wrap over several lines
+            match = self.hyperlink_at_click_re.match(self.parent().text(), hyperlink_pos)
+            if match and match.group().strip():
+                self.hyperlink_clicked.emit(match.group().strip())
 
 
     def language(self):
@@ -224,8 +279,9 @@ class ZkMdLexer(QsciLexerCustom):
     def styleText(self, start, end):
         self.clear_indicators()
         self.startStyling(0)
-        text = bytearray(self.parent().text(), "utf-8").decode("utf-8")
+        text = self.parent().text()
         orig_text = text
+        self.prepare_byte_offsets(text)
 
         regions = []
 
@@ -328,98 +384,45 @@ class ZkMdLexer(QsciLexerCustom):
             regions.append((a + len(match.group(1)), b+1, match.group(2)+'\n', 'quote.text'))
 
         no_blocks_in = []
-        # list unordered
-        p = re.compile(r'^( {4}|\t)*([\*-])([ \t]+[^\n]+?)$', flags=re.MULTILINE)
-        cont_line_re = re.compile(r'(^[ \t]+)([^-\* \t])([^\n]*)$', flags=re.MULTILINE)
-
+        # lists, unordered and ordered, at any nesting level.
+        # Both kinds are handled in one pass in document order, so that an
+        # item can be nested under an item of the other kind.
+        p = self.list_item_re
+        cont_line_re = self.list_cont_line_re
+        consumed = []
+        last_list_end = None
         for match in p.finditer(text):
             a = match.start()
             b = match.end()
-            a1 = match.start()
-            b1 = match.end(1)
-            a2 = match.start(2)
             b2 = match.end(2)
-            a3 = match.start(3)
-            b3 = match.end(3)
+            indent = match.group(1) or ''
 
-            if match.start(1) < 0:
-                # we are at the outmost level, so a1 = -1
-                a1 = match.start()
-            else:
-                # we are at an inner level
-                # --> check if we are a continuation
-                if not no_blocks_in:
-                    # skip this, as it is not a continuation
-                    continue
-                prev_item_start, prev_item_end = no_blocks_in[-1]
-                if a1 - prev_item_end >= 2:
+            if '\t' in indent or len(indent) >= 4:
+                # indented like a code block: only a list item if it continues
+                # a list, i.e. only blank lines lie between it and the item before
+                if last_list_end is None or a - last_list_end > 200 \
+                        or text[last_list_end:a].strip():
                     continue
             # now look for continuation lines:
             #    (lines that start with an indentation > len_symbol)
-            len_symbol = b2 - a1
-            keep_looking = True
-            while keep_looking:
-                cont_text = text[b + 1:]
-                cont_match = cont_line_re.match(cont_text)
+            len_symbol = b2 - a
+            while True:
+                cont_match = cont_line_re.match(text, b + 1)
                 if not cont_match:
                     break
                 if len(cont_match.group(1)) < len_symbol - 1:
                     break
-                b += cont_match.end() + 1
+                b = cont_match.end()
 
             no_blocks_in.append((a, b))
-            symbol = match.group()[:len_symbol]
-            nosymbol = match.group()[len_symbol:]
-            regions.append((a, a + len_symbol, symbol, 'list.symbol'))
-            regions.append((a + len_symbol, b, nosymbol, 'list.unordered'))
-            # consume the symbol
-            sym_start = a1
-            sym_end = b2
-            text = text[:sym_start] + 'B' * len_symbol + text[sym_end:] 
-
-        # list ordered
-        p = re.compile(r'^( {4}|\t)*([0-9\.]+?\.)([ \t]+[^\n]+)$', flags=re.MULTILINE)
-        for match in p.finditer(text):
-            #print('ordered', match.groups())
-            a = match.start()
-            b = match.end()
-            a1 = match.start()
-            b1 = match.end(1)
-            a2 = match.start(2)
-            b2 = match.end(2)
-            a3 = match.start(3)
-            b3 = match.end(3)
-
-            if match.start(1) < 0:
-                # we are at the outmost level
-                a1 = match.start()
-            else:
-                # we are at an inner level
-                # --> check if we are a continuation
-                if not no_blocks_in:
-                    # skip this, as it is not a continuation
-                    continue
-                prev_item_start, prev_item_end = no_blocks_in[-1]
-                if a1 - prev_item_end >= 2:
-                    continue
-            # now look for continuation lines:
-            #    (lines that start with an indentation > len_symbol)
-            len_symbol = b2 - a1
-            keep_looking = True
-            while keep_looking:
-                cont_text = text[b + 1:]
-                cont_match = cont_line_re.match(cont_text)
-                if not cont_match:
-                    break
-                if len(cont_match.group(1)) < len_symbol - 1:
-                    break
-                b += cont_match.end() + 1
-
-            no_blocks_in.append((a, b))
-            symbol = match.group()[:len_symbol]
-            nosymbol = match.group()[len_symbol:]
-            regions.append((a, a + len_symbol, symbol, 'list.symbol'))
-            regions.append((a + len(nosymbol), b, nosymbol, 'list.ordered'))
+            last_list_end = b
+            ordered = match.group(2)[0] not in '*-'
+            regions.append((a, a + len_symbol, 'nop', 'list.symbol'))
+            regions.append((a + len_symbol, b, 'nop', 'list.ordered' if ordered else 'list.unordered'))
+            if not ordered:
+                # consume the symbol so that * is not taken for emphasis
+                consumed.append((a, b2))
+        text = self.blank_out(text, consumed, 'B')
 
         # indented code blocks
         ### NEED TO STYLE THE \n at the end!!!
@@ -435,9 +438,11 @@ class ZkMdLexer(QsciLexerCustom):
                 b = match.end()
                 # don't block-quote list-sub-items
                 skip_this = False
+                first_line_start = match.end(1)
                 for no_a, no_b in no_blocks_in:
-                    if a >= no_a and b <= no_b + 1:
+                    if first_line_start >= no_a and b <= no_b + 1:
                         skip_this = True
+                        break
                 if skip_this:
                     pos = b - 1
                     continue
@@ -485,27 +490,25 @@ class ZkMdLexer(QsciLexerCustom):
             # consume
             text = text[:a] + 'x' * len(match.group()) + text[b:]
 
-        # citekeys for pandoc
-        # also hackish for mmd
-        p = re.compile(r'(\[[a-zA-Z:\.\s]*)(@|#)([^]\n]*)(\])')
-        for match in p.finditer(text):
-            #print('citekey', match.group())
+        # citekeys for pandoc: [@key], [-@key], [see @key, p. 3; e.g., @other]
+        # also hackish for mmd: [#key]
+        consumed = []
+        for match in self.citation_re.finditer(text):
             a = match.start()
-            a2 = a + len(match.group(1))
-            a3 = a2 + len(match.group(2))
-            a4 = a3 + len(match.group(3))
             b = match.end()
-            b1 = a2
-            b2 = a2 + len(match.group(2))
-            b3 = b2 + len(match.group(3))
-            regions.append((a, b1, match.group(1), 'default'))
-            regions.append((a2, b2, match.group(2), 'citekey'))
-            regions.append((a3, b3, match.group(3), 'citekey'))
-            regions.append((a4, b, match.group(4), 'default'))
-            # consume
-            text = text[:a] + 'x' * len(match.group()) + text[b:]
-            # make clickable
-            self.make_clickable(a+1, len(match.group(1)) - 1 + len(match.group(2)) + len(match.group(3)), self.indicator_id_citekey)
+            # the text before the first key keeps the default style
+            first_key = self.citekey_in_citation_re.search(match.group())
+            if not first_key:
+                continue
+            key_start = a + first_key.start()
+            regions.append((a, key_start, 'nop', 'default'))
+            regions.append((key_start, b - 1, 'nop', 'citekey'))
+            regions.append((b - 1, b, 'nop', 'default'))
+            consumed.append((a, b))
+            # every key is clickable on its own
+            for key in self.citekey_in_citation_re.finditer(match.group()):
+                self.make_clickable(a + key.start('key'), len(key.group('key')), self.indicator_id_citekey)
+        text = self.blank_out(text, consumed)
 
         # footnotes
         p = re.compile(r'(\[)(\^)([^]\n]+)(\])')
@@ -527,7 +530,7 @@ class ZkMdLexer(QsciLexerCustom):
             text = text[:a] + 'x' * len(match.group()) + text[b:]
 
         # images
-        p = re.compile(r'(!\[)([^\n\]]*)(\]\()([^\n\)]*)(\))(\s*\{)?([^\}\n]*)(\})?')
+        p = re.compile(r'(!\[)([^\n\]]*)(\]\()([^\n\)]*)(\))(?:(\s*\{)([^\}\n]*)(\}))?')
         for match in p.finditer(text):
             #print('image', match.group())
             a = match.start()
@@ -562,7 +565,7 @@ class ZkMdLexer(QsciLexerCustom):
             self.make_clickable(gstarts[3], len(gtexts[3]), self.indicator_id_hyperlink)
 
         # links
-        p = re.compile(r'(\[)([^\n\]]*)(\]\()([^\n\)]*)(\))(\s*\{)?([^\}\n]*)(\})?')
+        p = re.compile(r'(\[)([^\n\]]*)(\]\()([^\n\)]*)(\))(?:(\s*\{)([^\}\n]*)(\}))?')
         for match in p.finditer(text):
             a = match.start()
             #print('link', match.group(), match.groups())
