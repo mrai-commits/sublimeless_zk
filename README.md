@@ -1,5 +1,7 @@
 # The Sublime-less Zettelkasten
 
+*Version 1.0 is maintained in this fork. It continues [the original app by Rene Schallner](https://github.com/renerocksai/sublimeless_zk), which ended with version 0.9.*
+
 This is a note taking app that enables clickable ID-based Wiki-style links, and #tags in your plain text (Markdown) documents.
 
 If you follow the (plain-text) Zettelkasten method (as proposed by [Zettelkasten.de](https://zettelkasten.de) or [takesmartnotes.com](http://takesmartnotes.com/#moreinfo)), this might appeal to you.
@@ -157,13 +159,13 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 
 There are no installers. Just download and enjoy.
 
-The [releases](https://github.com/renerocksai/sublimeless_zk/releases) section of the GitHub repository provides binary [downloads](https://github.com/renerocksai/sublimeless_zk/releases) for up-to-date versions of both Windows 10 (64bit), macOs, and Linux.
+The [releases](https://github.com/mrai-commits/sublimeless_zk/releases) section of the GitHub repository provides binary [downloads](https://github.com/mrai-commits/sublimeless_zk/releases) for up-to-date versions of both Windows 10 (64bit), macOs, and Linux.
 
 ### Windows
 
 **Built and tested on Windows 10 (64bit) only:** [Rumors](https://github.com/renerocksai/sublimeless_zk/issues/40) have it that it works on Windows 8.1 but if you don't run Windows 10 64bit, don't expect it to run. Volunteers helping to build releases for other versions of Windows are welcome to contact me on GitHub.
 
-* Download the Windows ZIP (`sublimeless_zk-pre-x.y-win10.zip`) [from the GitHub release archive](https://github.com/renerocksai/sublimeless_zk/releases)
+* Download the Windows ZIP (`sublimeless_zk-pre-x.y-win10.zip`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
 * Unzip `sublimeless_zk-pre-x.y-win10.zip`
 * In the resulting `sublimeless_zk-pre-x.y-win10` folder, `sublimeless_zk.exe` is the program you want to run.
 
@@ -173,13 +175,13 @@ The [releases](https://github.com/renerocksai/sublimeless_zk/releases) section o
 
 
 ### macOS
-* Download the macOS ZIP (`sublimeless_zk-pre-x.y-macOS.app.zip`) [from the GitHub release archive](https://github.com/renerocksai/sublimeless_zk/releases)
+* Download the macOS ZIP (`sublimeless_zk-pre-x.y-macOS.app.zip`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
 * Unzip `sublimeless_zk-pre-x.y-macOS.app.zip`
 * `sublimeless_zk-pre-x.y.app` is the program you want to run.
 
 ### Linux
 
-* Download the Linux `.tar.gz` (`sublimeless_zk-pre-x.y-linux.tar.gz`) [from the GitHub release archive](https://github.com/renerocksai/sublimeless_zk/releases)
+* Download the Linux `.tar.gz` (`sublimeless_zk-pre-x.y-linux.tar.gz`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
 * Unpack `sublimeless_zk-pre-x.y-linux.tar.gz`
 * In the resulting `sublimeless_zk-pre-x.y-linux` folder, `sublimeless_zk` is the program you want to run.
 
@@ -192,7 +194,7 @@ If the above method doesn't work, you can try running the sources directly
     * build the Multimarkdown shared library for pymmd (required for HTML export): `python3 -c "import pymmd; pymmd.build_mmd()"`
     * for that to work you need a working C compiler and cmake:
         * `sudo apt-get install cmake gcc g++ binutils`
-* Download or `git clone` the sources directly from [GitHub](https://github.com/renerocksai/sublimeless_zk)
+* Download or `git clone` the sources directly from [GitHub](https://github.com/mrai-commits/sublimeless_zk)
 * change into the `src` folder
 * run `python3 sublimeless_zk.py`
 
