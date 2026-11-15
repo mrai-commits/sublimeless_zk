@@ -80,6 +80,21 @@ def test_selector_finds_by_words(app):         # item 35
     check('words in any order', fuzzypanel.find_items('collapse weick', items, 50)[0], items[1])
     check('accents are ignored', fuzzypanel.find_items('gumusay', items, 50)[0], items[2])
     check('exact matches come before loose ones', fuzzypanel.find_items('weick', items, 50)[:2], items[:2])
+    check('loose typing still works when nothing matches exactly', fuzzypanel.find_items('wck93', items, 50)[0], items[1])
+    check('nothing found gives an empty list', fuzzypanel.find_items('qqqq', items, 50), [])
+    # speed with a library of 4,000 entries: every keystroke runs a search
+    import time, random
+    random.seed(1)
+    names = ['Alvesson', 'Alvarez', 'Aldrich', 'Smith', 'Müller', 'Weick', 'Allen', 'Albert']
+    big = {f'{random.choice(names)} & {random.choice(names)} {1980 + i % 45} - A reasonably long title about organisational identity and culture, number {i} (key{i})': i
+           for i in range(4000)}
+    panel = fuzzypanel.FuzzySearchPanel(item_dict=big, max_items=50)
+    worst = 0
+    for typed in ('a', 'al', 'alv', 'alve', 'alvesson 1999', 'alvsn', 'zzqx'):
+        panel.input_line.setText(typed)
+        t = time.time(); panel.text_changed(); worst = max(worst, time.time() - t)
+    print('     slowest keystroke with 4,000 entries: %.0f ms' % (worst * 1000))
+    check('no keystroke takes longer than 50 ms with 4,000 entries', worst < 0.05)
 
 
 def test_insert_full_reference(app):           # item 7

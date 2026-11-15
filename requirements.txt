@@ -1,5 +1,4 @@
 bibtexparser==1.4.4
-fuzzyfinder==2.3.0
 jstyleson==0.0.2
 Markdown==3.11
 Pygments==2.21.0

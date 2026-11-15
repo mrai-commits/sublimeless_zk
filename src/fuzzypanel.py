@@ -1,7 +1,6 @@
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from fuzzyfinder import fuzzyfinder
 
 
 def fold(text):
@@ -10,33 +9,52 @@ def fold(text):
     return ''.join(c for c in unicodedata.normalize('NFKD', text.lower()) if not unicodedata.combining(c))
 
 
-def find_items(search_string, items, max_items):
+def find_items(search_string, items, max_items, folded=None):
     """
     Entries matching what the user typed, best first:
     1. entries that contain every typed word (in any order, ignoring case
        and accents), e.g. "weick 1995 sense" for one paper among many of the
        same author;
-    2. then loose "fuzzy" matches, as before.
+    2. only if there is no such entry: loose "fuzzy" matches, as before.
+
+    folded: the entries already passed through fold(), in the same order.
+    Passing it makes a search over thousands of entries take a few
+    milliseconds, which matters because this runs on every keystroke.
     """
-    items = list(items)
+    if not isinstance(items, list):
+        items = list(items)
     words = fold(search_string).split()
     if not words:
         return items[:max_items]
+    if folded is None:
+        folded = [fold(item) for item in items]
+    first = words[0]
+    rest = words[1:]
     exact = []
-    for item in items:
-        folded = fold(item)
-        if all(word in folded for word in words):
-            exact.append(item)
+    for index, text in enumerate(folded):
+        if first in text and all(word in text for word in rest):
+            exact.append(items[index])
             if len(exact) >= max_items:
-                return exact
-    if len(exact) < max_items:
-        seen = set(exact)
-        for item in fuzzyfinder(search_string, items):
-            if item not in seen:
-                exact.append(item)
-                if len(exact) >= max_items:
-                    break
-    return exact
+                break
+    if exact:
+        return exact
+    # loose match: the typed letters in this order, with anything in between.
+    # The tightest matches come first.
+    letters = ''.join(words)
+    loose = []
+    for index, text in enumerate(folded):
+        start = pos = text.find(letters[0])
+        if pos < 0:
+            continue
+        for letter in letters[1:]:
+            pos = text.find(letter, pos + 1)
+            if pos < 0:
+                break
+        else:
+            loose.append((pos - start, start, index))
+    loose.sort()
+    return [items[index] for _, _, index in loose[:max_items]]
+
 
 class PanelInputLine(QLineEdit):
     down_pressed = pyqtSignal()
@@ -67,7 +85,10 @@ class FuzzySearchPanel(QWidget):
         if self.item_dict is None:
             self.item_dict = {}
 
-        self.fuzzy_items = list(self.item_dict.keys())[:max_items]
+        # prepared once, so that each keystroke only does a plain text search
+        self.all_items = list(self.item_dict.keys())
+        self.folded_items = [fold(item) for item in self.all_items]
+        self.fuzzy_items = self.all_items[:max_items]
         self.initUI()
 
     def initUI(self):
@@ -111,19 +132,25 @@ class FuzzySearchPanel(QWidget):
         self.input_line.setFocus()
 
     def update_listbox(self):
-        for i in range(self.max_items):
-            item = self.list_box.item(i)
-            if i < len(self.fuzzy_items):
-                item.setHidden(False)
-                item.setText(self.fuzzy_items[i])
-            else:
-                item.setHidden(True)
-        self.list_box.setCurrentRow(0)
+        # one repaint for the whole list instead of one per row
+        self.list_box.setUpdatesEnabled(False)
+        try:
+            for i in range(self.max_items):
+                item = self.list_box.item(i)
+                if i < len(self.fuzzy_items):
+                    if item.text() != self.fuzzy_items[i]:
+                        item.setText(self.fuzzy_items[i])
+                    item.setHidden(False)
+                else:
+                    item.setHidden(True)
+            self.list_box.setCurrentRow(0)
+        finally:
+            self.list_box.setUpdatesEnabled(True)
 
     def text_changed(self):
         search_string = self.input_line.text()
         if search_string:
-            self.fuzzy_items = find_items(search_string, self.item_dict.keys(), self.max_items)
+            self.fuzzy_items = find_items(search_string, self.all_items, self.max_items, self.folded_items)
         else:
             self.fuzzy_items = list(self.item_dict.keys())[:self.max_items]
         self.update_listbox()
