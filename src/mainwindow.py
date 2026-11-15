@@ -4,7 +4,7 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.Qsci import *
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QRect
 
 from zkscintilla import ZettelkastenScintilla
 from zkmdlexer import ZkMdLexer
@@ -56,6 +56,8 @@ class MainWindow(QMainWindow):
         self.qtabs.setMovable(True)
         self.qtabs.setDocumentMode(True)
         self._lyt.addWidget(mainsplit)
+        self.mainsplit = mainsplit
+        self.subsplit = subsplit
         self.setUnifiedTitleAndToolBarOnMac(True)
         self.qtabs.setTabsClosable(True)
         if sys.platform == 'win32':
@@ -76,6 +78,43 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.word_count_label)
         self.statusBar().showMessage('Welcome to Sublimeless_ZK', 3000)
         self.show()
+
+    def layout_state(self):
+        """Pane sizes and window geometry, to be restored at the next start."""
+        g = self.geometry()
+        return {
+            'mainsplit': self.mainsplit.sizes(),
+            'subsplit': self.subsplit.sizes(),
+            'geometry': [g.x(), g.y(), g.width(), g.height()],
+            'maximized': self.isMaximized(),
+            'side_panel': self.saved_searches_editor.isVisible(),
+            'open_files_panel': self.notelist_panel.isVisible(),
+        }
+
+    def restore_layout(self, state):
+        if not isinstance(state, dict) or not state:
+            return
+        try:
+            geometry = state.get('geometry')
+            if geometry and len(geometry) == 4 and geometry[2] > 200 and geometry[3] > 150:
+                # only if that place still is on a connected screen
+                rect = QRect(*[int(v) for v in geometry])
+                if any(screen.availableGeometry().intersects(rect) for screen in QApplication.screens()):
+                    self.setGeometry(rect)
+            if state.get('maximized'):
+                self.showMaximized()
+            if state.get('open_files_panel') is True:
+                self.notelist_panel.setVisible(True)
+            if state.get('side_panel') is False:
+                self.saved_searches_editor.setVisible(False)
+                self.search_results_editor.setVisible(False)
+            for name in ('mainsplit', 'subsplit'):
+                sizes = state.get(name)
+                splitter = getattr(self, name)
+                if sizes and len(sizes) == splitter.count() and sum(sizes) > 0:
+                    splitter.setSizes([int(v) for v in sizes])
+        except Exception as e:
+            print('could not restore the window layout:', e)
 
     def apply_font_settings(self, settings):
         # apply font settings
@@ -114,6 +153,7 @@ class MainWindow(QMainWindow):
         
     def new_zk_editor(self, filn=None, settings=None):
         editor = ZettelkastenScintilla(document_filn=filn)
+        editor.continue_lists = bool((settings or {}).get('continue_lists', True))
         editor.setUtf8(True)             # Set encoding to UTF-8
         if filn:
             with open(filn,

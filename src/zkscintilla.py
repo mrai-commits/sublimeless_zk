@@ -4,6 +4,7 @@ from PyQt5.QtGui import *
 from PyQt5.Qsci import *
 
 from textshortcuts import EditorTextShortCutHandler
+import editfeatures
 
 
 class ZettelkastenScintilla(QsciScintilla):
@@ -171,8 +172,16 @@ class ZettelkastenScintilla(QsciScintilla):
         # Close the painter
         painter.end()
 
+    continue_lists = True     # setting "continue_lists"
+
     def keyPressEvent(self, event):
+        is_plain_enter = (event.key() in (Qt.Key_Return, Qt.Key_Enter)
+                          and not (event.modifiers() & ~Qt.KeypadModifier)
+                          and not self.isListActive())
         super().keyPressEvent(event)
+        if is_plain_enter and self.continue_lists and self.editor_type == 'normal' \
+                and not self.isReadOnly():
+            editfeatures.continue_list(self)
         self.text_shortcut_handler.keyPressEvent(event)
 
     ''''''

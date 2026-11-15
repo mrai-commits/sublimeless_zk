@@ -35,6 +35,9 @@ class ZkMdLexer(QsciLexerCustom):
         self._wide_extra = [0]
         self.settings = get_settings()
         self.double_brackets = self.settings.get('double_brackets', True)
+        # a plain click into a citation places the cursor (to edit it);
+        # Cmd/Ctrl+click or the follow-link key opens the citing notes
+        self.citations_need_modifier = self.settings.get('citations_need_cmd_click', True)
         editor = self.parent()
         editor.indicatorClicked.connect(self.on_click_indicator)
         self.setAutoIndentStyle(0) # we are block based --> use blockLookback
@@ -254,7 +257,7 @@ class ZkMdLexer(QsciLexerCustom):
                 self.create_link_from_title_clicked.emit(link_title, ctrl, alt, shift, only_notetitle_pos, len(link_title))
         elif citekey_pos:
             match = self.citekey_at_click_re.match(self.parent().text(), citekey_pos)
-            if match:
+            if match and (ctrl or not self.citations_need_modifier):
                 # a key never ends with punctuation ("@key." or "@key,")
                 citekey = match.group()
                 while len(citekey) > 2 and not citekey[-1].isalnum():

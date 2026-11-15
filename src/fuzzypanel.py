@@ -98,14 +98,20 @@ class FuzzySearchPanel(QWidget):
         self.update_listbox()
 
     def up_pressed(self):
+        count = min(len(self.fuzzy_items), self.max_items)
+        if not count:
+            return
         row = self.list_box.currentRow()
-        if row > 0:
-            self.list_box.setCurrentRow(row - 1)
+        # going up from the first entry continues at the last one
+        self.list_box.setCurrentRow(row - 1 if row > 0 else count - 1)
 
     def down_pressed(self):
+        count = min(len(self.fuzzy_items), self.max_items)
+        if not count:
+            return
         row = self.list_box.currentRow()
-        if row < len(self.fuzzy_items):
-            self.list_box.setCurrentRow(row + 1)
+        # going down from the last entry continues at the first one
+        self.list_box.setCurrentRow(row + 1 if row < count - 1 else 0)
 
     def return_pressed(self):
         if len(self.fuzzy_items) > 0:

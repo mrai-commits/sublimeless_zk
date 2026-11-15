@@ -87,8 +87,10 @@ def test_citations(app):                       # items 14, 26, 6
     lexer.cite_key_clicked.connect(lambda key, *a: clicked.append(key))
     l = line_of(e, 'A [@smith')
     text = e.text(l)
-    lexer.on_click_indicator(l, text.index('@editor2019') + 3, 0)
-    lexer.on_click_indicator(l, text.index('@smith2020] noauthor') + 3, 0)
+    from PyQt5.QtCore import Qt
+    ctrl = int(Qt.ControlModifier)        # citations open on Cmd/Ctrl+click
+    lexer.on_click_indicator(l, text.index('@editor2019') + 3, ctrl)
+    lexer.on_click_indicator(l, text.index('@smith2020] noauthor') + 3, ctrl)
     check('click reports the key under the pointer', clicked[-2:], ['@editor2019', '@smith2020'])
 
 

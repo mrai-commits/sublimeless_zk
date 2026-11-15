@@ -38,6 +38,7 @@ from buildcommands import BuildCommands
 from zkutils import sanitize_filename, split_search_terms, open_hyperlink
 from findrefcountdlg import show_find_refcount_dlg
 from notewatcher import NotesWatcher
+import editfeatures
 
 
 class Sublimeless_Zk(QObject):
@@ -119,8 +120,31 @@ class Sublimeless_Zk(QObject):
         self.advancedTagSearchAction = QAction('Search for tag combination', self)
         self.advancedTagSearchAction.setShortcut('Ctrl+T')
 
+        # not on Ctrl+B any more: too easy to hit by accident next to Ctrl+V
         self.autoBibAction = QAction('Insert Bibliography', self)
-        self.autoBibAction.setShortcut('Ctrl+B')
+        self.autoBibAction.setShortcut('Ctrl+Alt+B')
+
+        # formatting
+        self.formatBoldAction = QAction('Bold', self)
+        self.formatBoldAction.setShortcut('Ctrl+B')
+        self.formatItalicAction = QAction('Italic', self)
+        self.formatItalicAction.setShortcut('Ctrl+I')
+        self.formatCodeAction = QAction('Inline Code', self)
+        self.formatCodeAction.setShortcut('Ctrl+Shift+C')
+        self.formatDashListAction = QAction('Toggle Dash List', self)
+        self.formatDashListAction.setShortcut('Ctrl+L')
+        self.formatNumberListAction = QAction('Toggle Numbered List', self)
+        self.formatNumberListAction.setShortcut('Ctrl+Alt+L')
+
+        self.newKeepTextAction = QAction('New Zettel Note, keep selected text', self)
+        self.newKeepTextAction.setShortcut('Ctrl+Alt+N')
+
+        self.insertLinkAltAction = QAction('Insert Link to Note (title the other way round)', self)
+        self.insertLinkAltAction.setShortcut('Ctrl+Shift+L')
+
+        self.followLinkCloseParentAction = QAction('Follow Link and close this note', self)
+
+        self.showTagsByCountAction = QAction('Show all Tags by number of notes', self)
 
         if not self._show_images_disabled:
             self.showImagesAction = QAction('Show Images', self)
@@ -234,6 +258,10 @@ class Sublimeless_Zk(QObject):
         else:
             self.ctrl_return_sc = QShortcut(Qt.ControlModifier | Qt.Key_Return, self.gui)
         self.ctrl_return_sc.activated.connect(self.zk_follow_link)
+        if sys.platform == 'darwin':
+            self.followLinkCloseParentAction.setShortcut(QKeySequence(Qt.MetaModifier | Qt.ShiftModifier | Qt.Key_Return))
+        else:
+            self.followLinkCloseParentAction.setShortcut(QKeySequence(Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_Return))
 
         # command palette action **must come last**
         self.command_palette_actions = {action.text(): action for action in self.__dict__.values() if isinstance(action, QAction)}
@@ -257,7 +285,11 @@ class Sublimeless_Zk(QObject):
         line_count = len(t.split('\n'))
         word_count = len(t.split())
         self.gui.line_count_label.setText(f'Lines: {line_count}')
-        self.gui.word_count_label.setText(f'Words: {word_count}')
+        if editor.hasSelectedText():
+            selected_words = editfeatures.count_words(editor.selectedText())
+            self.gui.word_count_label.setText(f'Words: {selected_words} of {word_count}')
+        else:
+            self.gui.word_count_label.setText(f'Words: {word_count}')
         
         self.gui.format_editor_info(editor)
         return
@@ -273,6 +305,7 @@ class Sublimeless_Zk(QObject):
         about = menubar.addMenu("About")
 
         self.file_menu.addAction(self.newAction)
+        self.file_menu.addAction(self.newKeepTextAction)
         # file.addAction(self.newTabAction)
         self.file_menu.addAction(self.openFolderAction)
         self.file_menu.addAction(self.saveAction)
@@ -311,7 +344,15 @@ class Sublimeless_Zk(QObject):
         edit_editor.addAction(self.toggleUseTabsAction)
         
         edit.addSeparator()
+        edit_format = edit.addMenu('Format')
+        edit_format.addAction(self.formatBoldAction)
+        edit_format.addAction(self.formatItalicAction)
+        edit_format.addAction(self.formatCodeAction)
+        edit_format.addAction(self.formatDashListAction)
+        edit_format.addAction(self.formatNumberListAction)
+        edit.addSeparator()
         edit.addAction(self.insertLinkAction)
+        edit.addAction(self.insertLinkAltAction)
         edit.addAction(self.insertTagAction)
         edit.addAction(self.insertCitationAction)
         edit.addAction(self.expandLinkAction)
@@ -338,6 +379,8 @@ class Sublimeless_Zk(QObject):
         view.addAction(self.showRecentViewsAction)
         view.addAction(self.showReferencingNotesAction)
         view.addAction(self.showTagsAction)
+        view.addAction(self.showTagsByCountAction)
+        view.addAction(self.followLinkCloseParentAction)
         view.addSeparator()
         view.addAction(self.newThemeAction)
         view.addAction(self.chooseThemeAction)
@@ -381,6 +424,15 @@ class Sublimeless_Zk(QObject):
         self.refreshExpandedNoteAction.triggered.connect(self.refresh_expanded_note)
         self.advancedTagSearchAction.triggered.connect(self.advanced_tag_search)
         self.autoBibAction.triggered.connect(self.auto_bib)
+        self.formatBoldAction.triggered.connect(lambda: self.format_selection('**'))
+        self.formatItalicAction.triggered.connect(lambda: self.format_selection('*'))
+        self.formatCodeAction.triggered.connect(lambda: self.format_selection('`'))
+        self.formatDashListAction.triggered.connect(lambda: self.format_list(False))
+        self.formatNumberListAction.triggered.connect(lambda: self.format_list(True))
+        self.newKeepTextAction.triggered.connect(lambda: self.zk_new_zettel(keep_text=True))
+        self.insertLinkAltAction.triggered.connect(lambda: self.insert_link(toggle_title=True))
+        self.followLinkCloseParentAction.triggered.connect(self.follow_link_close_parent)
+        self.showTagsByCountAction.triggered.connect(lambda: self.show_all_tags(check_editor=False, sort='count'))
 
         if not self._show_images_disabled:
             self.showImagesAction.triggered.connect(self.show_images)
@@ -441,7 +493,12 @@ class Sublimeless_Zk(QObject):
         other_ctrl_keys = [
             Qt.Key_E, Qt.Key_R,
             Qt.Key_T,
-            Qt.Key_B,
+            Qt.Key_B, Qt.Key_I, Qt.Key_L,
+            Qt.ShiftModifier | Qt.Key_C,
+            Qt.ShiftModifier | Qt.Key_L,
+            Qt.AltModifier | Qt.Key_L,
+            Qt.AltModifier | Qt.Key_B,
+            Qt.AltModifier | Qt.Key_N,
             Qt.ShiftModifier | Qt.Key_I,
             Qt.ShiftModifier | Qt.Key_H,
             Qt.ShiftModifier | Qt.Key_T,
@@ -581,6 +638,7 @@ class Sublimeless_Zk(QObject):
             except:
                 pass
         self.gui.apply_font_settings(test_settings)
+        self.gui.restore_layout(self.app_state.window)
         exit_code = 0
 
         try:
@@ -653,7 +711,7 @@ class Sublimeless_Zk(QObject):
         else:
             if filn:
                 return self.open_document(filn)
-            self._show_status_message(f'There is no note with the ID {noteid}')
+            self.notify(f'There is no note with the ID {noteid}')
 
     def clicked_tag(self, tag, ctrl, alt, shift):
         print('tag', tag)
@@ -802,6 +860,8 @@ class Sublimeless_Zk(QObject):
     def save_appstate(self):
         print('save appstate')
         self.update_open_notes()
+        if self.gui is not None and self.gui.isVisible():
+            self.app_state.window = self.gui.layout_state()
         now = int(time.time())
         too_old = now - 31 * 24 * 60 * 60
         if self.project:
@@ -984,7 +1044,49 @@ class Sublimeless_Zk(QObject):
     # Zettelkasten Command Slots
     #
 
-    def zk_new_zettel(self):
+    def notify(self, msg, seconds=8):
+        """Show a message in the status bar for a few seconds."""
+        self.gui.statusBar().showMessage(msg, seconds * 1000)
+
+    def safe_filename_part(self, title):
+        """
+        File-name-safe version of a note title. Tells the user if characters
+        such as ? : / had to be replaced.
+        """
+        safe = sanitize_filename(title)
+        if safe != title:
+            self.notify('Characters that are not allowed in file names ( \\ / : " * ? < > | ) '
+                        'were replaced by - in the file name', 12)
+        return safe
+
+    def format_selection(self, marker):
+        editor = self.get_active_editor()
+        if isinstance(editor, ZettelkastenScintilla) and editor.editor_type == 'normal':
+            editfeatures.toggle_wrap(editor, marker)
+
+    def format_list(self, ordered):
+        editor = self.get_active_editor()
+        if isinstance(editor, ZettelkastenScintilla) and editor.editor_type == 'normal':
+            editfeatures.toggle_list(editor, ordered)
+
+    def follow_link_close_parent(self):
+        """Follow the link under the cursor and close the note it was in."""
+        parent = self.get_active_editor()
+        if not isinstance(parent, ZettelkastenScintilla) or parent.editor_type != 'normal':
+            return self.zk_follow_link()
+        self.zk_follow_link()
+        if self.gui.qtabs.currentWidget() is not parent:
+            index = self.gui.qtabs.indexOf(parent)
+            if index >= 0:
+                self.tab_close_requested(index)
+
+    def zk_new_zettel(self, keep_text=False):
+        """
+        keep_text: when the note is created from a selection, leave the
+        selected text where it is and put the link after it (instead of
+        replacing the text by the link).
+        """
+        keep_text = keep_text is True     # QAction.triggered passes a bool
         print('New Zettel')
         origin = None
         o_title = None
@@ -1021,14 +1123,21 @@ class Sublimeless_Zk(QObject):
         id_in_title = settings.get('id_in_title')
 
         new_id = self.project.timestamp()
-        the_file = os.path.join(self.project.folder, new_id + ' ' + sanitize_filename(input_text) + extension)
+        the_file = os.path.join(self.project.folder, new_id + ' ' + self.safe_filename_part(input_text) + extension)
         new_title = input_text
         if id_in_title:
             new_title = new_id + ' ' + input_text
 
         if insert_link:
             link_txt = self.project.style_link(new_id, input_text)
-            editor.replaceSelectedText(link_txt)
+            if keep_text:
+                sel = editor.getSelection()
+                editor.setCursorPosition(sel[2], sel[3])
+                editor.insert(' ' + link_txt)
+                editor.setCursorPosition(sel[2], sel[3] + len(link_txt) + 1)
+                note_body = None      # the text stays in the original note
+            else:
+                editor.replaceSelectedText(link_txt)
         self.project.create_note(the_file, new_title, origin, o_title, note_body)
         self.open_document(the_file)
 
@@ -1041,10 +1150,14 @@ class Sublimeless_Zk(QObject):
             return
 
         line, index = editor.getCursorPosition()
-        editor.lexer().on_click_indicator(line, index, 0)
+        editor.lexer().on_click_indicator(line, index, int(Qt.ControlModifier))
         return
 
-    def insert_link(self, pos=None):
+    def insert_link(self, pos=None, toggle_title=False):
+        """
+        toggle_title: do the opposite of the setting insert_links_with_titles
+        for this one link.
+        """
         print('Insert Link')
         editor = self.get_active_editor()
         if not isinstance(editor, ZettelkastenScintilla):
@@ -1056,6 +1169,10 @@ class Sublimeless_Zk(QObject):
         if selected_note:
             note_id, title = selected_note.split(' ', 1)
             link_txt = self.project.style_link(note_id, title)
+            if toggle_title is True:
+                with_title = not self.project.settings.get('insert_links_with_titles', False)
+                prefix, postfix = self.project.get_link_pre_postfix()
+                link_txt = prefix + note_id + postfix + (' ' + title if with_title else '')
             # check if editor contains [[ right before current cursor position
             line, index = editor.getCursorPosition()
             replace_index_start = index
@@ -1084,12 +1201,21 @@ class Sublimeless_Zk(QObject):
                 editor.setSelection(line, replace_index_start, line, replace_index_end)
                 editor.replaceSelectedText('')
 
-    def show_all_tags(self, check_editor=True):
+    def show_all_tags(self, check_editor=True, sort=None):
+        """
+        List all tags with the number of notes that carry each one.
+        sort: 'name' or 'count'; default is the setting tag_list_sort.
+        """
         print('show all tags')
-        tags = self.project.find_all_tags()
-        tags.sort()
-        lines = '# All Tags\n\n'
-        lines += '\n'.join(['* ' + tag for tag in tags])
+        id2tags, tags2ids = self.project.find_all_notes_all_tags()
+        counts = {tag: len(set(note_ids)) for tag, note_ids in tags2ids.items()}
+        if sort not in ('name', 'count'):
+            sort = self.project.settings.get('tag_list_sort', 'name')
+        tags = sorted(counts, key=lambda tag: tag.lower())
+        if sort == 'count':
+            tags.sort(key=lambda tag: -counts[tag])
+        lines = f'# All Tags ({len(tags)})\n\n'
+        lines += '\n'.join([f'* {tag} ({counts[tag]})' for tag in tags])
 
         with open(self.project.get_search_results_filn(),
                   mode='w', encoding='utf-8', errors='ignore') as f:
@@ -1144,7 +1270,7 @@ class Sublimeless_Zk(QObject):
         else:
             # link to a note that does not exist: still list who links to it
             title = '(note does not exist)'
-            self._show_status_message(f'There is no note with the ID {note_id}')
+            self.notify(f'There is no note with the ID {note_id}')
         styled_link = self.project.style_link(note_id, title, force_title=True)
         self.project.externalize_note_links(ref_note_files, f'# {len(ref_note_files)} Notes referencing {styled_link}')
         self.reload(self.gui.search_results_editor)
@@ -1630,7 +1756,7 @@ class Sublimeless_Zk(QObject):
         settings = self.project.settings
         extension = settings.get('markdown_extension', '.md')
         old_note_filn = editor.file_name
-        new_note_filn = os.path.join(os.path.dirname(old_note_filn), f'{note_id} {sanitize_filename(new_title)}{extension}')
+        new_note_filn = os.path.join(os.path.dirname(old_note_filn), f'{note_id} {self.safe_filename_part(new_title)}{extension}')
         if os.path.exists(new_note_filn):
             QMessageBox.warning(self.gui, 'Rename Note', f'A note named {os.path.basename(new_note_filn)} already exists.')
             return
@@ -1928,26 +2054,39 @@ class Sublimeless_Zk(QObject):
         editor.ensureLineVisible(line_index + 1)
         editor.setCursorPosition(line_index + 1, col_index)
 
+    @staticmethod
+    def recent_period_label(hours):
+        if hours == 1:
+            return 'Last hour'
+        if hours < 48:
+            return f'Last {hours:g} hours'
+        return f'Last {hours / 24:g} days'
+
     def show_recent_views(self):
+        """
+        Recently opened notes, grouped by period. The periods are the setting
+        recent_notes_hours, e.g. [1, 6, 24, 168, 720].
+        """
         d = self.app_state.recently_viewed.get(self.project.folder, {})
         now = int(time.time())
-        days30 = now - 30 * 24 * 60 * 60
-        days7 = now - 7 * 24 * 60 * 60
-        hours24 = now - 24 * 60 * 60
-        hour1 = now - 60 * 60
-
-        # sort and filter
-        hour_notes = {note_filn: t for t, note_filn in sorted([(t, note_filn) for note_filn, t in d.items() if t > hour1])}
-        day_notes = {note_filn: t for t, note_filn in sorted([(t, note_filn) for note_filn, t in d.items() if t > hours24 and note_filn not in hour_notes])}
-        week_notes = {note_filn: t for t, note_filn in sorted([(t, note_filn) for note_filn, t in d.items() if t > days7 and note_filn not in hour_notes and note_filn not in day_notes])}
-        rest_notes = {note_filn: t for t, note_filn in sorted([(t, note_filn) for note_filn, t in d.items() if t > days30 and note_filn not in hour_notes and note_filn not in day_notes and note_filn not in week_notes])}
+        periods = self.project.settings.get('recent_notes_hours', None)
+        try:
+            periods = sorted({float(h) for h in periods if float(h) > 0})
+        except (TypeError, ValueError):
+            periods = []
+        if not periods:
+            periods = [1, 6, 24, 7 * 24, 30 * 24]
 
         lines = ['# Recently Opened Notes']
-        for desc, d in {'Last hour': hour_notes, 'Last 24 hours': day_notes, 'Last 7 days': week_notes, 'Last 30 days': rest_notes}.items():
-            lines.append(f'\n## {desc}')
-            fake_refcounts = {os.path.basename(filn).split(' ', 1)[0]: t for filn, t in d.items()}
-            note_files = list(d.keys())
-            lines.extend(self.project.externalize_note_links(note_files, refcounts=fake_refcounts, sort='refcount', order='desc', do_write=False))
+        already_listed = set()
+        for hours in periods:
+            since = now - hours * 60 * 60
+            notes = {note_filn: t for t, note_filn in sorted((t, note_filn) for note_filn, t in d.items()
+                                                             if t > since and note_filn not in already_listed)}
+            already_listed.update(notes)
+            lines.append(f'\n## {self.recent_period_label(hours)}')
+            fake_refcounts = {os.path.basename(filn).split(' ', 1)[0]: t for filn, t in notes.items()}
+            lines.extend(self.project.externalize_note_links(list(notes.keys()), refcounts=fake_refcounts, sort='refcount', order='desc', do_write=False))
         self.gui.search_results_editor.setText('\n'.join(lines))
 
     def toggle_open_files_panel(self):

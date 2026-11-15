@@ -115,4 +115,26 @@
     // use tabs instead of spaces?
     "use_tabs": false,
 
+    // ---------------------------------------------------------------
+    // Added in version 1.0
+    // ---------------------------------------------------------------
+
+    // When you press Enter in a list, start the next item ("- " or the
+    // next number). Enter on an empty item ends the list.
+    "continue_lists": true,
+
+    // Citations like [@key]: open the list of citing notes only on
+    // Cmd+click (Ctrl+click on Windows and Linux) or with the follow-link
+    // key. A plain click just places the cursor, so you can edit the
+    // citation. Set to false to open on a plain click.
+    "citations_need_cmd_click": true,
+
+    // "Show recently viewed notes": the periods, in hours.
+    //    1 = last hour, 6 = last 6 hours, 24 = last day, 168 = last 7 days
+    "recent_notes_hours": [1, 6, 24, 168, 720],
+
+    // "Show all Tags" lists every tag with its number of notes.
+    //    Sort by "name" or by "count" (most used first)
+    "tag_list_sort": "name",
+
 }
