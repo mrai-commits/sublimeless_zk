@@ -63,7 +63,10 @@ def open_hyperlink(hyperlink):
             os.startfile(hyperlink)
         else:
             # assume linux
-            subprocess.call(('LD_LIBRARY_PATH="" ; xdg-open  ' + hyperlink), shell=True)
+            # no shell: the address comes from note text
+            env = dict(os.environ)
+            env.pop('LD_LIBRARY_PATH', None)
+            subprocess.Popen(['xdg-open', hyperlink], env=env)
     except:
         # TODO: better error handling 
         pass
