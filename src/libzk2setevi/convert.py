@@ -9,29 +9,38 @@ import markdown as md
 import json
 import shutil
 import struct
-import imghdr
+import imgtype as imghdr
 from pygments import highlight
 from pygments.lexers import guess_lexer
 from pygments.formatters.html import HtmlFormatter
 import pypandoc
-import pymmd
+
+# pymmd needs a compiled MultiMarkdown library; keep the app usable without it
+try:
+    import pymmd
+    pymmd.load_mmd()
+    pymmd.convert('init', ext=pymmd.SNIPPET)
+    HAVE_MMD = True
+except Exception as e:
+    print('MultiMarkdown (pymmd) not available:', e)
+    pymmd = None
+    HAVE_MMD = False
 from datetime import datetime
 
-
-pymmd.load_mmd()
 
 def pandoc_markdown(text):
     return pypandoc.convert_text(text, 'html', format='md', extra_args=['--mathjax', '--highlight-style=tango'])
 
 
 def mmd_markdown(text):
+    if not HAVE_MMD:
+        return native_markdown(text)
     return pymmd.convert(text, ext=pymmd.SNIPPET)
 
 
 def native_markdown(text):
     return md.markdown(text)
 
-mmd_markdown('pyinstaller')
 
 available_parsers = {'basic': native_markdown, 'pandoc': pandoc_markdown, 'mmd': mmd_markdown}
 
@@ -323,7 +332,7 @@ class Zk2Setevi:
 
                     # now replace link
                     orig_markdown = pre + path + post + opt
-                    alt_text = re.findall('(\[.*\])', pre)
+                    alt_text = re.findall(r'(\[.*\])', pre)
                     if alt_text:
                         alt_text = alt_text[0]
                     else:

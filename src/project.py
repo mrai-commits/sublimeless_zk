@@ -140,7 +140,7 @@ class Project:
             timestamp = datetime.datetime.strptime(note_id, '%Y%m%d%H%M')
         # now handle the format string(s)
         new_template = template
-        for pre, fmt, post in re.findall('({timestamp:\s*)([^\}]*)(})', template):
+        for pre, fmt, post in re.findall(r'({timestamp:\s*)([^\}]*)(})', template):
             spec = pre + fmt + post
             new_template = new_template.replace(spec, timestamp.strftime(fmt))
         return new_template

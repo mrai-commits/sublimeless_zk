@@ -9,7 +9,7 @@ class ZkConstants:
     Some constants used over and over
     """
     # characters at which a #tag is cut off (#tag, -> #tag)
-    Tag_Stops = '.,\/!$%\^&\*;\{\}[]\'"=`~()<>\\'
+    Tag_Stops = '.,\\/!$%\\^&\\*;\\{\\}[]\'"=`~()<>\\'
 
     # search for tags in files
     RE_TAGS = r"(?<=\s|^)(?<!`)(#+([^#\s.,\/!$%\^&\*;{}\[\]'\"=`~()<>”\\]" \
@@ -21,7 +21,7 @@ class ZkConstants:
 
     # match note links in text
     # adapted from ST3 plugin to include closing ]]
-    Link_Matcher = re.compile('(\[+)([0-9.]{12,18})([^]]*\]+)|(§)([0-9.]{12,18})')
+    Link_Matcher = re.compile(r'(\[+)([0-9.]{12,18})([^]]*\]+)|(§)([0-9.]{12,18})')
 
-    RE_IMG_LINKS = '(!\[.*\]\()(.*)(\))(\{.*\})?'
+    RE_IMG_LINKS = r'(!\[.*\]\()(.*)(\))(\{.*\})?'
     Img_Matcher = re.compile(RE_IMG_LINKS)

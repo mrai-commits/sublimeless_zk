@@ -205,7 +205,7 @@ class ZkMdLexer(QsciLexerCustom):
                 # emit tag clicked signal
                 self.cite_key_clicked.emit(citekey, ctrl, alt, shift)
         elif hyperlink_pos:
-            p = re.compile('.*?\)')
+            p = re.compile(r'.*?\)')
             match = p.match(self.parent().text()[hyperlink_pos:hyperlink_pos + 200])
             if match:
                 hyperlink = match.group()[:-1]

@@ -7,7 +7,7 @@ class TextProduction:
     """
     Static class grouping functions for text production from overview notes.
     """
-    Link_Matcher = re.compile('(\[+|§)([0-9.]{12,18})(\]+|.?)')
+    Link_Matcher = re.compile(r'(\[+|§)([0-9.]{12,18})(\]+|.?)')
 
     @staticmethod
     def read_full_note(note_id, project):

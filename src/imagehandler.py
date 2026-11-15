@@ -1,6 +1,6 @@
 import re
 import struct
-import imghdr
+import imgtype as imghdr
 import os
 
 
