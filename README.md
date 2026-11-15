@@ -63,6 +63,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 * [Saved Searches](#saved-searches)
 * [HTML Export into a semantic text view](#html-export)
 * [Command Palette](#command-palette)
+* **New in version 1.0:** formatting shortcuts, lists that continue on <kbd>enter</kbd>, tag counts, and more: see [New in version 1.0](#new-in-version-10)
 * [**External Commands:**](#external-commands)
     * Can create PDFs, e.g. via pandoc, as the provided examples
     * Can automatically open the created PDF, HTML, ...
@@ -130,6 +131,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
         * [Switching Themes](#switching-themes)
     * [External Commands](#external-commands)
         * [Convert note to PDF](#external-commands)
+    * [New in version 1.0](#new-in-version-10)
 
 * [Configuration](#configuration)
     * [Files](#files)
@@ -237,6 +239,13 @@ This app comes with sane defaults. You can start using it right away. Once you h
 * Move line up: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>U</kbd>
 * Move line down: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>D</kbd>
 * [Run external command](#external-commands): <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>X</kbd>
+* [Bold](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>B</kbd>, [Italic](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>I</kbd>, [Inline code](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> *(new in 1.0)*
+* [Dash list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>L</kbd>, [Numbered list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> *(new in 1.0)*
+* [Insert bibliography](#automatic-bibliographies) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>B</kbd> *(changed in 1.0)*
+* [New note from text, keeping the text](#new-notes-and-links) Select text, then <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd> *(new in 1.0)*
+* [Insert link, title the other way round](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd> *(new in 1.0)*
+* [Open link and close the current note](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + click, or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> *(new in 1.0)*
+* [Open the notes citing a source](#citations) <kbd>ctrl/cmd</kbd> + click the @citekey *(changed in 1.0)*
 
 ### User Interface
 
@@ -945,7 +954,7 @@ It is common practice to keep local bibliographies in your notes. This makes eac
 In any note with citations
 
 * pick `Insert Bibliography` from the edit menu
-* press <kbd>Control</kbd> + <kbd>B</kbd>
+* press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>B</kbd> *(changed in 1.0: it was too easy to hit next to <kbd>V</kbd>)*
 
 This will add a long comment to your note in the following format *(line wrapping added for github manually)*:
 
@@ -1414,6 +1423,45 @@ variable        | description
 `{new_note_id}` | a timestamp based note id if you need to create a new note
 
 **Note:** Based on the above, to pass the complete filename of the current note to your external command, use: `{note_path}{note_name}{note_ext}`.
+
+
+### New in version 1.0
+
+Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on the release page, and adds the following. Settings go into the [settings file](#the-settings-file).
+
+#### Formatting shortcuts
+
+* <kbd>ctrl/cmd</kbd> + <kbd>B</kbd> makes the selection `**bold**`, <kbd>ctrl/cmd</kbd> + <kbd>I</kbd> `*italic*`, <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> `` `code` ``. Press again to remove the formatting. Without a selection, the markers are inserted and the cursor is placed between them.
+* <kbd>ctrl/cmd</kbd> + <kbd>L</kbd> turns the current or the selected lines into a dash list, <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> into a numbered list. Press again to turn them back.
+* Pressing <kbd>enter</kbd> in a list starts the next item, with the next number in numbered lists. <kbd>enter</kbd> on an empty item ends the list. Switch off with `"continue_lists": false`.
+* Lists are highlighted at any nesting level, and dashes and numbers can be nested in each other.
+
+#### New notes and links
+
+* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd>: the new note is created as with <kbd>shift</kbd> + <kbd>enter</kbd>, but the selected text stays and the link is put after it.
+* <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd> inserts a link the opposite way to [this setting](#insert-links-with-or-without-titles): with the title if you normally insert links without, and vice versa.
+* <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + click on a link opens the note and closes the one you came from, like following a link in a web browser. With the keyboard: <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd>.
+* Characters that are not allowed in file names, like `?`, are replaced by `-` in the file name of a new or renamed note. A message in the status bar tells you; the title inside the note is not changed.
+
+#### Citations
+
+* Citations with a prefix or without author are recognized and highlighted: `[-@smith2020]`, `[e.g., @smith2020, p. 3; @miller2019]`. Each citekey is clickable on its own.
+* A plain click into a citation places the cursor, so you can edit it. <kbd>ctrl/cmd</kbd> + click opens the notes citing the source. Use `"citations_need_cmd_click": false` to go back to the plain click.
+* The [automatic bibliography](#automatic-bibliographies) works with current versions of pandoc and is produced in one go, which is much faster for long notes.
+* `.bib` entries that use `crossref`, e.g. chapters of an edited book exported by BibDesk, show the editors and year of the book in the citation list.
+
+#### Tags, searching, and history
+
+* `#!` shows the number of notes beside each tag: `* #tag (12)`. View > Show all Tags by number of notes sorts by that number; `"tag_list_sort": "count"` makes this the default.
+* The periods of the [recently opened notes](#browsing-recently-opened-notes) are a setting, in hours: `"recent_notes_hours": [1, 6, 24, 168, 720]`.
+* In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
+
+#### User interface
+
+* The status bar shows the number of words in the selection: `Words: 12 of 950`.
+* The sizes of the panels, and the size and position of the window, are remembered.
+* In the lists of the command palette and the note, tag, and citation selectors, <kbd>up</kbd> on the first entry jumps to the last one, and <kbd>down</kbd> on the last to the first.
+* Long notes: typing stays fast in notes of 10,000 words and more.
 
 
 ## Configuration
