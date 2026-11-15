@@ -45,16 +45,16 @@ def line_of(editor, start):
 def test_ordered_lists(app):                   # items 10, 33
     e = app.open_document(LISTS); app.app.processEvents()
     check('first level: number is symbol, text is list', styles(e, line_of(e, '1. first')),
-          [(0, 'list.symbol'), (2, 'list.ordered')])
-    check('first level: whole text has the list style', style_at(e, line_of(e, '1. first'), 17), 'list.ordered')
-    check('second level numbered', styles(e, line_of(e, '    1. second')), [(0, 'list.symbol'), (6, 'list.ordered')])
+          [(0, 'list.symbol'), (2, 'list.unordered')])
+    check('first level: the text looks like dash-list text', style_at(e, line_of(e, '1. first'), 17), 'list.unordered')
+    check('second level numbered', styles(e, line_of(e, '    1. second')), [(0, 'list.symbol'), (6, 'list.unordered')])
     check('third level dash under number', styles(e, line_of(e, '        - third'))[:2],
           [(0, 'list.symbol'), (9, 'list.unordered')])
     check('number nested under dash', styles(e, line_of(e, '    1. number under'))[:2],
-          [(0, 'list.symbol'), (6, 'list.ordered')])
+          [(0, 'list.symbol'), (6, 'list.unordered')])
     check('paragraph after list is plain', styles(e, line_of(e, 'plain paragraph')), [(0, 'default')])
     check('nested item after blank line is a list item, not code',
-          styles(e, line_of(e, '    2. nested'))[:2], [(0, 'list.symbol'), (6, 'list.ordered')])
+          styles(e, line_of(e, '    2. nested'))[:2], [(0, 'list.symbol'), (6, 'list.unordered')])
 
 
 def test_non_ascii_offsets(app):               # clickable ranges after multi-byte characters

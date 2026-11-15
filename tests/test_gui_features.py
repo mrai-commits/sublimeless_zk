@@ -89,6 +89,42 @@ def test_list_continuation(app):               # item 13
     e.continue_lists = True
 
 
+def test_tab_indents_list_items(app):
+    e = fresh(app, '- one\n- two\n3. three\nplain\n')
+    e.setCursorPosition(1, 4)
+    QTest.keyClick(e, Qt.Key_Tab); app.app.processEvents()
+    check('Tab in a dash item indents the item', e.text(1), '    - two\n')
+    check('the cursor stays at the same letter', e.getCursorPosition(), (1, 8))
+    QTest.keyClick(e, Qt.Key_Tab, Qt.ShiftModifier); app.app.processEvents()
+    check('Shift+Tab brings it back', e.text(1), '- two\n')
+    e.setCursorPosition(2, 5)
+    QTest.keyClick(e, Qt.Key_Tab); app.app.processEvents()
+    check('an indented numbered item starts at 1', e.text(2), '    1. three\n')
+    e.setCursorPosition(3, 2)
+    QTest.keyClick(e, Qt.Key_Tab); app.app.processEvents()
+    check('Tab outside a list is unchanged', e.text(3).startswith('pl') and e.text(3) != 'plain\n' and not e.text(3).startswith(' '))
+
+
+def test_toc_entries_jump(app):
+    body = '\n'.join('filler line %d' % i for i in range(60))
+    text = ('<!-- table of contents (auto) -->\n<!-- (end of auto-toc) -->\n\n# First part\n\n' + body +
+            '\n\n## Second [@smith2020] part\n\n' + body + '\n\n## Dritter Teil mit Ümlaut\n\ntext\n')
+    e = fresh(app, text)
+    e.setCursorPosition(0, 0)
+    app.auto_toc(); app.app.processEvents()
+    toc = [e.text(i).strip() for i in range(e.lines()) if e.text(i).lstrip().startswith('* [')]
+    check('headings with a citation give a valid entry', toc[1], '* [Second @smith2020 part](#second-smith2020-part)')
+    line = [i for i in range(e.lines()) if 'Dritter Teil' in e.text(i) and e.text(i).lstrip().startswith('*')][0]
+    col = e.text(line).index('Dritter') + 2          # click on the visible text of the entry
+    e.lexer().on_click_indicator(line, col, 0); app.app.processEvents()
+    target = [i for i in range(e.lines()) if e.text(i).startswith('## Dritter')][0]
+    check('clicking a TOC entry jumps to its heading', e.getCursorPosition()[0], target)
+    check('and scrolls it into view', e.firstVisibleLine() <= target <= e.firstVisibleLine() + 40 and e.firstVisibleLine() > 20)
+    line = [i for i in range(e.lines()) if e.text(i).lstrip().startswith('* [First')][0]
+    e.lexer().on_click_indicator(line, e.text(line).index('#first') + 2, 0); app.app.processEvents()
+    check('clicking the anchor part works too', e.text(e.getCursorPosition()[0]), '# First part\n')
+
+
 def test_selection_word_count(app):            # item 31
     e = fresh(app, 'one two three four five\n')
     app.update_status_bar()
@@ -272,7 +308,8 @@ def test_citation_needs_modifier(app):         # item 41
     check('follow-link key opens it', clicked, ['@smith2020', '@smith2020'])
 
 
-run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_selection_word_count,
+run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_tab_indents_list_items, test_toc_entries_jump,
+               test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
                test_click_link_close_parent, test_bundled_fonts, test_font_size_adjust, test_shortcut_cheatsheet, test_citation_needs_modifier])

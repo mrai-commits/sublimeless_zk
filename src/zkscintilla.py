@@ -186,6 +186,16 @@ class ZettelkastenScintilla(QsciScintilla):
         is_plain_enter = (event.key() in (Qt.Key_Return, Qt.Key_Enter)
                           and not (event.modifiers() & ~Qt.KeypadModifier)
                           and not self.isListActive())
+        if event.key() == Qt.Key_Tab and not event.modifiers() and self.continue_lists \
+                and self.editor_type == 'normal' and not self.isReadOnly() and not self.isListActive():
+            if editfeatures.indent_list_item(self):
+                return
+        is_shift_tab = event.key() == Qt.Key_Backtab or \
+            (event.key() == Qt.Key_Tab and event.modifiers() == Qt.ShiftModifier)
+        if is_shift_tab and self.continue_lists and self.editor_type == 'normal' \
+                and not self.isReadOnly() and not self.isListActive():
+            if editfeatures.unindent_list_item(self):
+                return
         super().keyPressEvent(event)
         if is_plain_enter and self.continue_lists and self.editor_type == 'normal' \
                 and not self.isReadOnly():

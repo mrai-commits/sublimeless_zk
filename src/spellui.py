@@ -22,6 +22,7 @@ class SpellUnderliner(QObject):
         super().__init__(parent)
         self.checker = checker
         self.enabled = True
+        self.suggest_ahead = True       # prepare suggestions in the background
         self.editors = weakref.WeakSet()
         self.waiting = weakref.WeakSet()    # editors to underline again soon
         self.pending = {}                   # words still to look up
@@ -96,6 +97,14 @@ class SpellUnderliner(QObject):
             line_start = sum(len(l) for l in text.split('\n')[:line]) + line if line else 0
             cursor = line_start + index
 
+        # suggestions for the misspelled words on screen are prepared ahead
+        first_line = editor.firstVisibleLine()
+        lines_on_screen = editor.SendScintilla(QsciScintilla.SCI_LINESONSCREEN)
+        screen_start = editor.positionFromLineIndex(first_line, 0)
+        last_line = min(editor.lines() - 1, first_line + lines_on_screen)
+        screen_end = editor.positionFromLineIndex(last_line, 0) + len(editor.text(last_line).encode('utf-8'))
+        on_screen = []
+
         self.clear(editor)
         unknown = False
         for start, end, word in spellcheck.words_to_check(text):
@@ -106,8 +115,12 @@ class SpellUnderliner(QObject):
             elif not ok and not (cursor is not None and start <= cursor <= end):
                 b_start = bytepos(start)
                 editor.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, b_start, bytepos(end) - b_start)
+                if screen_start <= b_start <= screen_end:
+                    on_screen.append(word)
         if unknown:
             self.waiting_for_lookup(editor)
+        elif on_screen and self.suggest_ahead:
+            self.checker.suggest_ahead(on_screen)
 
     def waiting_for_lookup(self, editor):
         self._after_lookup = getattr(self, '_after_lookup', weakref.WeakSet())

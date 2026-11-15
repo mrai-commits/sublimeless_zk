@@ -18,6 +18,8 @@ The first release since 0.9. It brings the app to current versions of Python and
 * Citations without author or with a prefix, `[-@key]` and `[e.g., @key]`, are highlighted and clickable.
 * Two or more web links on one line: each one is highlighted and clickable, instead of the rest of the line being swallowed.
 * Long web links that wrap over several lines are clickable.
+* A citation or link in a heading no longer breaks its entry in the table of contents.
+* The text of a numbered list item has the normal text color; only the number is colored.
 * Typing in long notes is fast again. A note of 9,400 words needed 580 ms per keystroke; now about 40 ms.
 
 **Find and replace**

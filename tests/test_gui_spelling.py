@@ -95,6 +95,21 @@ def test_suggestions_menu(app):
     check('a correct word gets the plain menu', added, False)
 
 
+def test_suggestions_are_ready_ahead(app):
+    e = open_checked(app, note('201801010902 Ahead.md', '# Ahead\n\nA sentance with a mispelled wurd.\n'))
+    app.spell.underline(e)                      # all words known now: suggestions start in the background
+    checker = app.spell.checker
+    deadline = time.time() + 20
+    while not all(w in checker.suggestions for w in ('sentance', 'mispelled', 'wurd')) and time.time() < deadline:
+        app.app.processEvents(); time.sleep(0.05)
+    check('suggestions for the words on screen are prepared in the background',
+          all(w in checker.suggestions for w in ('sentance', 'mispelled', 'wurd')))
+    t = time.time(); menu, added = menu_for(app, e, 'sentance'); took = time.time() - t
+    print('     right-click menu after preparation: %.0f ms' % (took * 1000))
+    check('the right-click menu then opens at once (under 0.1 s)', added and took < 0.1)
+    check('with the correction', menu.actions()[0].text(), 'sentence')
+
+
 def test_personal_dictionary(app):
     e = open_checked(app)
     menu, added = menu_for(app, e, 'mistaek')
@@ -132,4 +147,4 @@ def test_long_note_stays_responsive(app):
 
 
 run_gui_tests([test_dictionaries_load, test_underlines, test_underline_follows_edits, test_suggestions_menu,
-               test_personal_dictionary, test_switch_off, test_long_note_stays_responsive])
+               test_suggestions_are_ready_ahead, test_personal_dictionary, test_switch_off, test_long_note_stays_responsive])

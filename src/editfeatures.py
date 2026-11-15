@@ -162,5 +162,58 @@ def continue_list(editor):
     return True
 
 
+def indent_list_item(editor):
+    """
+    Tab in a list item: indent the whole item one level instead of inserting
+    spaces at the cursor. A numbered item starts its new sub-list at 1.
+    Returns True if the current line was a list item and has been indented.
+    """
+    if editor.hasSelectedText():
+        return False
+    line, index = editor.getCursorPosition()
+    text = _strip_eol(editor.text(line))
+    match = LIST_PREFIX_RE.match(text)
+    if not match:
+        return False
+    editor.beginUndoAction()
+    try:
+        before = len(text) - len(text.lstrip())
+        editor.indent(line)
+        text = _strip_eol(editor.text(line))
+        shift = (len(text) - len(text.lstrip())) - before
+        numbered = re.match(r'^(\s*)(\d+)([.)])', text)
+        if numbered and numbered.group(2) != '1':
+            start = len(numbered.group(1))
+            editor.setSelection(line, start, line, start + len(numbered.group(2)))
+            editor.replaceSelectedText('1')
+            shift += 1 - len(numbered.group(2))
+        editor.setCursorPosition(line, max(0, index + shift))
+    finally:
+        editor.endUndoAction()
+    return True
+
+
+def unindent_list_item(editor):
+    """Shift+Tab in a list item: move the whole item one level back."""
+    if editor.hasSelectedText():
+        return False
+    line, index = editor.getCursorPosition()
+    text = _strip_eol(editor.text(line))
+    if not LIST_PREFIX_RE.match(text):
+        return False
+    before = len(text) - len(text.lstrip())
+    if before == 0:
+        return True                     # already at the first level: nothing to do
+    editor.beginUndoAction()
+    try:
+        editor.unindent(line)
+        text = _strip_eol(editor.text(line))
+        shift = (len(text) - len(text.lstrip())) - before
+        editor.setCursorPosition(line, max(0, index + shift))
+    finally:
+        editor.endUndoAction()
+    return True
+
+
 def count_words(text):
     return len(text.split())

@@ -234,7 +234,7 @@ class Autobib:
         return args
 
     @staticmethod
-    def create_bibliography(text, bibfile, pandoc='pandoc'):
+    def create_bibliography(text, bibfile, pandoc='pandoc', style=()):
         """
         Create a bibliography for all citations in text in form of a dictionary
         {'@citekey': 'formatted reference'}. Runs pandoc once for all of them.
@@ -248,7 +248,7 @@ class Autobib:
         keys = sorted({citekey[1:] for citekey in cited})
         pandoc_input = '---\nnocite: |\n  {}\n---\n'.format(', '.join('@' + key for key in keys))
         args = [pandoc, '-f', 'markdown', '-t', 'html']
-        args += Autobib.citeproc_args(pandoc) + ['--bibliography', bibfile]
+        args += Autobib.citeproc_args(pandoc) + ['--bibliography', bibfile] + list(style)
         html_out = Autobib.run_pandoc(args, pandoc_input)
         key2bib = Autobib.parse_references_html(html_out)
         citekey2bib = {}

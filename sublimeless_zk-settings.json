@@ -165,4 +165,14 @@
     // in points: 1 = one point larger, -0.5 = half a point smaller.
     "editor_font_size_adjust": 0,
 
+    // Citation style for the automatic bibliography, "Insert Full Reference"
+    // and the export to Word and PDF: a .csl file, e.g. "apa-6th-edition.csl".
+    // Put the file into your notes folder (or give its full path).
+    // Empty = pandoc's default style (Chicago author-date).
+    // A note can have its own style with a line "csl: name.csl" in its YAML header.
+    "csl": "",
+
+    // Tab in a list item indents the item instead of inserting spaces
+    // (switched on and off together with "continue_lists").
+
 }

@@ -61,5 +61,55 @@ def test_no_note_open(app):
     check('nothing to export gives no file', app.export_note('pdf', os.path.join(OUT, 'none.pdf'), open_result=False), None)
 
 
-run_gui_tests([test_pandoc_is_found, test_word, test_pdf, test_pdf_without_pandoc, test_no_note_open])
+CSL = """<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0">
+  <info><title>%s</title><id>%s</id><updated>2020-01-01T00:00:00+00:00</updated></info>
+  <citation><layout prefix="{" suffix="}"><text variable="title"/></layout></citation>
+  <bibliography><layout><text variable="title" prefix="%s: "/></layout></bibliography>
+</style>
+"""
+
+
+def test_citation_style_setting(app):
+    note('mystyle.csl', CSL % ('My', 'my', 'MYSTYLE'))
+    app.open_document(N)
+    app.project.settings['csl'] = 'mystyle.csl'
+    out = app.export_note('docx', os.path.join(OUT, 'styled.docx'), open_result=False)
+    xml = docx_text(out)
+    check('the style from the setting is used in Word', '{a book}' in xml.lower() and 'mystyle: a book' in xml.lower())
+    app.project.settings['csl'] = 'mystyle'
+    check('the name works without .csl', bool(app.export_note('pdf', os.path.join(OUT, 'styled.pdf'), open_result=False)))
+    # the same style for a full reference and the automatic bibliography
+    import sublimeless_zk as szk
+    e = app.get_active_editor()
+    szk.show_fuzzy_panel = lambda *a, **k: ('x', 'smith2020')
+    app.bib_entries = None
+    e.setCursorPosition(e.lines() - 1, 0)
+    app.insert_full_reference()
+    check('full reference uses the style', 'mystyle: a book' in e.text().lower())
+    e.undo()
+
+
+def test_yaml_style_wins(app):
+    note('other.csl', CSL % ('Other', 'other', 'OTHER'))
+    path = note('201801010602 Yaml.md', '---\ntitle: With header\ncsl: other.csl\n---\n\nText [@smith2020].\n')
+    app.open_document(path)
+    app.project.settings['csl'] = 'mystyle.csl'
+    out = app.export_note('docx', os.path.join(OUT, 'yaml.docx'), open_result=False)
+    check('a csl line in the note header wins over the setting', 'other: a book' in docx_text(out).lower())
+
+
+def test_missing_style_is_explained(app):
+    from harness import messages
+    app.open_document(N)
+    app.project.settings['csl'] = 'nowhere.csl'
+    del messages[:]
+    out = app.export_note('docx', os.path.join(OUT, 'missing.docx'), open_result=False)
+    check('a missing style gives no file', out, None)
+    check('and a message naming it and the folders searched', any('nowhere.csl' in m and 'Looked in' in m for m in messages))
+    app.project.settings['csl'] = ''
+
+
+run_gui_tests([test_pandoc_is_found, test_word, test_pdf, test_pdf_without_pandoc, test_citation_style_setting,
+               test_yaml_style_wins, test_missing_style_is_explained, test_no_note_open])
 print(OUT)

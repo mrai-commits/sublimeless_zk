@@ -1606,7 +1606,12 @@ class Sublimeless_Zk(QObject):
             QMessageBox.warning(self.gui, 'Insert Full Reference', 'Pandoc was not found.')
             return
         bibfile = Autobib.look_for_bibfile(self.project)
-        references = Autobib.create_bibliography('@' + citekey, bibfile, pandoc=pandoc)
+        try:
+            style = self.citation_style_args(editor.text(), os.path.dirname(editor.file_name or '') or None)
+        except noteexport.ExportError as e:
+            QMessageBox.warning(self.gui, 'Insert Full Reference', str(e))
+            return
+        references = Autobib.create_bibliography('@' + citekey, bibfile, pandoc=pandoc, style=style)
         reference = references.get('@' + citekey)
         if not reference or reference == '(no bib generated)':
             QMessageBox.warning(self.gui, 'Insert Full Reference',
@@ -1632,7 +1637,12 @@ class Sublimeless_Zk(QObject):
                 if not pandoc:
                     QMessageBox.warning(editor, 'Pandoc not found', 'The pandoc program could not be executed. Have you installed it?\n\nCheck the setting "path_to_pandoc".')
                     return
-                ck2bib = Autobib.create_bibliography(text, bibfile, pandoc=pandoc)
+                try:
+                    style = self.citation_style_args(text, os.path.dirname(editor.file_name or '') or None)
+                except noteexport.ExportError as e:
+                    QMessageBox.warning(editor, 'Auto-Bibliography', str(e))
+                    return
+                ck2bib = Autobib.create_bibliography(text, bibfile, pandoc=pandoc, style=style)
                 if Autobib.last_error:
                     QMessageBox.warning(editor, 'Auto-Bibliography', 'Pandoc reported a problem:\n\n' + Autobib.last_error[:1000])
                     if not any(bib != '(no bib generated)' for bib in ck2bib.values()):
@@ -1707,22 +1717,52 @@ class Sublimeless_Zk(QObject):
         editor.setSelection(line_num_start, index_start, line_num_end, index_end)
 
         lines = [TOC_HDR]
-        ref_counter = Counter({'': 1})   # '' for unprintable char only headings
-
-        for heading, level, h_start, h_end in editor.lexer().get_headings():
-            ref = heading2ref(heading)
-            ref_counter[ref] += 1
-            if ref_counter[ref] > 1:
-                ref = ref + '{}{}'.format(suffix_sep, ref_counter[ref] - 1)
-
-            match = re.match(r'\s*(#+)(.*)', heading)
-            hashes, title = match.groups()
-            title = title.strip()
+        for ref, title, level, h_start in self.heading_anchors(editor):
+            # a citation or link in a heading would break the [title](#ref) markup
+            title = title.replace('[', '').replace(']', '')
             line = '    ' * (level - 1) + f'* [{title}](#{ref})'
             lines.append(line)
         lines.append(TOC_END)
         print('\n'.join(lines))
         editor.replaceSelectedText('\n'.join(lines))
+
+    def heading_anchors(self, editor):
+        """
+        [(anchor, title, level, character position), ...] for the headings of
+        a note; the anchors are the ones the table of contents links to.
+        """
+        suffix_sep = '_'
+        if self.project.settings.get('toc_suffix_separator', None):
+            suffix_sep = self.project.settings['toc_suffix_separator']
+        ref_counter = Counter({'': 1})   # '' for unprintable char only headings
+        anchors = []
+        for heading, level, h_start, h_end in editor.lexer().get_headings():
+            match = re.match(r'\s*(#+)(.*)', heading)
+            if not match:
+                continue
+            ref = unicodedata.normalize('NFKD', heading).encode('ascii', 'ignore')
+            ref = re.sub(r'[^\w\s-]', '', ref.decode('ascii', errors='ignore')).strip().lower()
+            ref = re.sub(r'[-\s]+', '-', ref)
+            ref_counter[ref] += 1
+            if ref_counter[ref] > 1:
+                ref = ref + '{}{}'.format(suffix_sep, ref_counter[ref] - 1)
+            anchors.append((ref, match.group(2).strip(), level, h_start))
+        return anchors
+
+    def goto_heading(self, editor, anchor):
+        """Jump to the heading a table-of-contents entry points to."""
+        anchor = anchor.lstrip('#')
+        for ref, title, level, h_start in self.heading_anchors(editor):
+            if ref == anchor:
+                line = editor.text()[:h_start].count('\n')
+                if editor.text()[h_start:h_start + 1] == '\n':
+                    line += 1
+                editor.setCursorPosition(line, 0)
+                editor.setFirstVisibleLine(line)
+                editor.setFocus()
+                return True
+        self.notify('This note has no heading for ' + anchor + '. Run the table of contents command to refresh it.')
+        return False
 
     def number_headings(self):
         editor = self.get_active_editor()
@@ -2094,6 +2134,16 @@ class Sublimeless_Zk(QObject):
             self.gui.notelist_panel.remove_note_filn(editor.file_name)
             self.notes_watcher.on_file_closed(editor.file_name)
 
+    def citation_style_args(self, text, note_folder=None):
+        """
+        Pandoc arguments for the citation style of a note: the setting "csl",
+        unless the note's YAML header has its own csl line. Style files are
+        found beside the note, in the notes folder and in the settings folder.
+        """
+        settings_folder = os.path.join(self.app_state.home, 'sublimeless_zk.rc')
+        folders = [note_folder, self.project.folder, settings_folder, os.path.join(settings_folder, 'csl')]
+        return noteexport.style_args(text, self.project.settings.get('csl', ''), folders)
+
     def export_note(self, kind, out_path=None, open_result=True):
         """
         Export the current note to Word (kind 'docx') or PDF (kind 'pdf').
@@ -2118,11 +2168,12 @@ class Sublimeless_Zk(QObject):
         pandoc = get_pandoc()
         note_folder = os.path.dirname(editor.file_name)
         try:
+            style = self.citation_style_args(editor.text(), note_folder)
             if kind == 'docx':
-                noteexport.export_docx(editor.text(), out_path, pandoc, bibfile, note_folder)
+                noteexport.export_docx(editor.text(), out_path, pandoc, bibfile, note_folder, style)
             else:
                 noteexport.export_pdf(editor.text(), out_path, pandoc, bibfile, note_folder,
-                                      page_size=settings.get('pdf_page_size', 'A4'))
+                                      page_size=settings.get('pdf_page_size', 'A4'), style=style)
         except noteexport.ExportError as e:
             QMessageBox.warning(self.gui, 'Export', str(e))
             return None
@@ -2444,6 +2495,13 @@ class Sublimeless_Zk(QObject):
         self.gui.notelist_panel.setVisible(not self.gui.notelist_panel.isVisible())        
 
     def open_hyperlink(self, hyperlink):
+        if hyperlink.startswith('#'):
+            # a link inside the note, as in the table of contents
+            lexer = self.sender()
+            editor = lexer.parent() if lexer is not None else self.get_active_editor()
+            if isinstance(editor, ZettelkastenScintilla):
+                self.goto_heading(editor, hyperlink)
+            return
         open_hyperlink(hyperlink)
             
 

@@ -30,6 +30,55 @@ class ExportError(Exception):
     pass
 
 
+YAML_HEADER_RE = re.compile(r'\A---[ \t]*\n(.*?)\n(?:---|\.\.\.)[ \t]*(?:\n|\Z)', re.DOTALL)
+
+
+def yaml_has_csl(text):
+    """True if the note's YAML header names a citation style itself."""
+    header = YAML_HEADER_RE.match(text)
+    return bool(header and re.search(r'^csl:[ \t]*\S', header.group(1), re.MULTILINE))
+
+
+def find_csl(name, folders):
+    """
+    Full path of a citation style file. `name` may be a full path, or a file
+    name with or without .csl that is looked for in `folders`, in order.
+    """
+    if not name:
+        return None
+    name = os.path.expanduser(name)
+    names = [name] if name.lower().endswith('.csl') else [name, name + '.csl']
+    for candidate in names:
+        if os.path.isabs(candidate):
+            if os.path.isfile(candidate):
+                return candidate
+            continue
+        for folder in folders:
+            path = os.path.join(folder, candidate)
+            if os.path.isfile(path):
+                return path
+    return None
+
+
+def style_args(text, csl_setting, folders):
+    """
+    Pandoc arguments for the citation style.
+    - `folders` are where style and bib files named without a path are found:
+      beside the note, in the notes folder, in the settings folder.
+    - A `csl:` line in the note's YAML header wins over the setting.
+    - Without either, pandoc uses its default (Chicago author-date).
+    """
+    folders = [f for f in dict.fromkeys(folders) if f and os.path.isdir(f)]
+    args = ['--resource-path', os.pathsep.join(folders)] if folders else []
+    if yaml_has_csl(text) or not csl_setting:
+        return args
+    path = find_csl(csl_setting, folders)
+    if not path:
+        raise ExportError(f'The citation style "{csl_setting}" (setting "csl") was not found.\n\n'
+                          'Looked in:\n' + '\n'.join(folders))
+    return args + ['--csl', path]
+
+
 def prepare_markdown(text, with_citeproc):
     """
     Note text as given to the converters. When pandoc formats the citations
@@ -60,29 +109,29 @@ def citation_args(pandoc, text, bibfile):
     return Autobib.citeproc_args(pandoc) + ['--bibliography', bibfile]
 
 
-def export_docx(text, out_path, pandoc, bibfile=None, note_folder=None):
+def export_docx(text, out_path, pandoc, bibfile=None, note_folder=None, style=()):
     """Write the note as a Word document."""
     if not pandoc:
         raise ExportError('Pandoc was not found. It is needed for the export to Word.')
     cite = citation_args(pandoc, text, bibfile)
-    args = ['-f', 'markdown', '-t', 'docx', '-o', out_path] + cite
-    if note_folder:
+    args = ['-f', 'markdown', '-t', 'docx', '-o', out_path] + cite + list(style)
+    if note_folder and '--resource-path' not in args:
         args += ['--resource-path', note_folder]
     run_pandoc(pandoc, args, prepare_markdown(text, bool(cite)), cwd=note_folder)
     return out_path
 
 
-def note_to_html(text, pandoc=None, bibfile=None, note_folder=None):
+def note_to_html(text, pandoc=None, bibfile=None, note_folder=None, style=()):
     """HTML body of the note: by pandoc if available, else by python-markdown."""
     if pandoc:
         cite = citation_args(pandoc, text, bibfile)
-        return run_pandoc(pandoc, ['-f', 'markdown', '-t', 'html'] + cite,
+        return run_pandoc(pandoc, ['-f', 'markdown', '-t', 'html'] + cite + list(style),
                           prepare_markdown(text, bool(cite)), cwd=note_folder)
     import markdown
     return markdown.markdown(text, extensions=['extra', 'sane_lists'])
 
 
-def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page_size='A4'):
+def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page_size='A4', style=()):
     """
     Write the note as a PDF. Needs a running QApplication.
     page_size: 'A4' or 'Letter'.
@@ -91,7 +140,7 @@ def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page
     from PyQt5.QtGui import QTextDocument, QPageLayout, QPageSize
     from PyQt5.QtPrintSupport import QPrinter
 
-    body = note_to_html(text, pandoc, bibfile, note_folder)
+    body = note_to_html(text, pandoc, bibfile, note_folder, style)
     html = f'<html><head><meta charset="utf-8"><style>{PDF_CSS}</style></head><body>{body}</body></html>'
 
     printer = QPrinter(QPrinter.HighResolution)

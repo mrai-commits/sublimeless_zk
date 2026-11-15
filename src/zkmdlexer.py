@@ -160,7 +160,7 @@ class ZkMdLexer(QsciLexerCustom):
             editor.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, i)
             editor.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, num_bytes)
 
-    def make_clickable(self, startpos, length, indicator_id):
+    def make_clickable(self, startpos, length, indicator_id, value=None):
         # Tell the editor which indicator-style to use
         # (pass it the indicator-style ID number)
         editor = self.parent()
@@ -170,7 +170,8 @@ class ZkMdLexer(QsciLexerCustom):
         b_start = self.bytepos(startpos)
         b_length = self.bytepos(startpos + length) - b_start
 
-        editor.SendScintilla(QsciScintilla.SCI_SETINDICATORVALUE, startpos)
+        # the value tells the click handler where the target text starts
+        editor.SendScintilla(QsciScintilla.SCI_SETINDICATORVALUE, startpos if value is None else value)
         # Now apply the indicator-style on the chosen text
         editor.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, b_start, b_length)
 
@@ -436,7 +437,9 @@ class ZkMdLexer(QsciLexerCustom):
             last_list_end = b
             ordered = match.group(2)[0] not in '*-'
             regions.append((a, a + len_symbol, 'nop', 'list.symbol'))
-            regions.append((a + len_symbol, b, 'nop', 'list.ordered' if ordered else 'list.unordered'))
+            # the text of a numbered item looks like the text of a dash item;
+            # only the number carries the list colour
+            regions.append((a + len_symbol, b, 'nop', 'list.unordered'))
             if not ordered:
                 # consume the symbol so that * is not taken for emphasis
                 consumed.append((a, b2))
@@ -581,6 +584,9 @@ class ZkMdLexer(QsciLexerCustom):
             # consume
             text = text[:a] + 'x' * len(replace_str) + text[b:]
             self.make_clickable(gstarts[3], len(gtexts[3]), self.indicator_id_hyperlink)
+            # the visible text of the link opens it too
+            if gtexts[1]:
+                self.make_clickable(gstarts[1], len(gtexts[1]), self.indicator_id_hyperlink, value=gstarts[3])
 
         # links
         p = re.compile(r'(\[)([^\n\]]*)(\]\()([^\n\)]*)(\))(?:(\s*\{)([^\}\n]*)(\}))?')
@@ -616,6 +622,9 @@ class ZkMdLexer(QsciLexerCustom):
             # consume
             text = text[:a] + 'x' * len(replace_str) + text[b:]
             self.make_clickable(gstarts[3], len(gtexts[3]), self.indicator_id_hyperlink)
+            # the visible text of the link opens it too
+            if gtexts[1]:
+                self.make_clickable(gstarts[1], len(gtexts[1]), self.indicator_id_hyperlink, value=gstarts[3])
 
         # bolditalic
         p = re.compile(r'(\*{3}|_{3})(?!\s)([^\n]+?)(?<!\s)(\1)')

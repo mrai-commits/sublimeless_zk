@@ -67,6 +67,11 @@ class SpellChecker:
         self.personal = set()
         self.dictionaries = {}          # language -> spylls Dictionary
         self.known = {}                 # word -> True/False
+        self.suggestions = {}           # misspelled word -> list of corrections
+        self.lookup_cost = {}           # language -> seconds for a few non-words
+        self._ahead_queue = []
+        self._ahead_thread = None
+        self._ahead_lock = threading.Lock()
         self.ready = False
         self.error = None
         self._load_personal()
@@ -79,6 +84,7 @@ class SpellChecker:
             from spylls.hunspell import Dictionary
             for lang in self.languages:
                 self.dictionaries[lang] = Dictionary.from_files(os.path.join(self.dictionary_folder, lang))
+            self.measure_lookup_cost()
             self.ready = bool(self.dictionaries)
         except Exception as e:      # never let spell checking break the app
             self.error = repr(e)
@@ -136,30 +142,91 @@ class SpellChecker:
     def suggest(self, word, limit=7, seconds=1.2):
         """
         Correct words one typing slip away from `word`: swapped, missing,
-        wrong or extra letter, tried in this order. Hunspell's own suggestions
+        wrong or extra letter, the likeliest first. Hunspell's own suggestions
         take up to half a minute with the French dictionary, so this does the
-        common cases and stops after `seconds`.
+        common cases and stops after `seconds`. Answers are remembered.
         """
+        cached = self.suggestions.get(word)
+        if cached is not None:
+            return cached[:limit]
+        result = self._suggest(word, limit, seconds)
+        self.suggestions[word] = result
+        return result
+
+    def _suggest(self, word, limit, seconds):
         import time
         deadline = time.time() + seconds
         capitalized = word[:1].isupper()
-        lower = word.lower()
         alphabet = ''.join(dict.fromkeys(''.join(ALPHABETS.get(lang[:2], ALPHABETS['en'])
                                                    for lang in self.dictionaries)))
-        suggestions = []
-        for candidate in self._edits(lower, alphabet):
-            shown = candidate[:1].upper() + candidate[1:] if capitalized else candidate
-            for dictionary in self.dictionaries.values():
+        candidates = list(self._edits(word.lower(), alphabet))
+        found = {}                      # position in candidates -> word as shown
+
+        def try_dictionary(dictionary):
+            for position, candidate in enumerate(candidates):
+                if position in found:
+                    continue
+                shown = candidate[:1].upper() + candidate[1:] if capitalized else candidate
                 try:
-                    found = dictionary.lookup(shown) or (capitalized and dictionary.lookup(candidate))
+                    ok = dictionary.lookup(shown) or (capitalized and dictionary.lookup(candidate))
                 except Exception:
-                    found = False
-                if found:
-                    suggestions.append(shown)
-                    break
-            if len(suggestions) >= limit or time.time() > deadline:
+                    ok = False
+                if ok:
+                    found[position] = shown
+                if time.time() > deadline:
+                    return False
+            return True
+
+        # quick dictionaries first: they get through all candidates in a few
+        # hundredths of a second; the slow one (French) uses the time left
+        for lang in sorted(self.dictionaries, key=lambda l: self.lookup_cost.get(l, 0)):
+            if not try_dictionary(self.dictionaries[lang]):
                 break
-        return suggestions
+        return [found[position] for position in sorted(found)][:limit]
+
+    def measure_lookup_cost(self):
+        """How long each dictionary takes to reject a non-word (decides the order in suggest)."""
+        import time
+        probes = ['qzxv', 'organisatonn', 'xqzkwq', 'teh', 'maissonn', 'hablamoss', 'wurdd', 'zzyqa']
+        for lang, dictionary in self.dictionaries.items():
+            start = time.time()
+            for probe in probes:
+                try:
+                    dictionary.lookup(probe)
+                except Exception:
+                    pass
+            self.lookup_cost[lang] = time.time() - start
+
+    def suggest_ahead(self, words):
+        """
+        Work out suggestions for these words in the background, so that they
+        are ready when the user right-clicks one of them.
+        """
+        todo = [word for word in words if word not in self.suggestions]
+        if not todo:
+            return
+        with self._ahead_lock:
+            for word in todo:
+                if word not in self._ahead_queue:
+                    self._ahead_queue.append(word)
+            del self._ahead_queue[:-40]         # the most recent ones matter
+            if self._ahead_thread is None or not self._ahead_thread.is_alive():
+                self._ahead_thread = threading.Thread(target=self._suggest_ahead_worker, daemon=True)
+                self._ahead_thread.start()
+
+    def _suggest_ahead_worker(self):
+        import time
+        while True:
+            with self._ahead_lock:
+                if not self._ahead_queue:
+                    return
+                word = self._ahead_queue.pop()
+            if word not in self.suggestions:
+                try:
+                    self.suggestions[word] = self._suggest(word, 7, 1.5)
+                except Exception:
+                    self.suggestions[word] = []
+            time.sleep(0.02)            # leave room for the user interface
 
     @staticmethod
     def _edits(word, alphabet):
@@ -180,6 +247,7 @@ class SpellChecker:
         """Accept a word from now on, and keep it in the personal dictionary file."""
         self.personal.add(word)
         self.known[word] = True
+        self.suggestions.pop(word, None)
         for key in [k for k, ok in self.known.items() if not ok and '-' in k]:
             del self.known[key]         # compounds containing the word: look up again
         if self.personal_file:

@@ -1436,6 +1436,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * <kbd>ctrl/cmd</kbd> + <kbd>B</kbd> makes the selection `**bold**`, <kbd>ctrl/cmd</kbd> + <kbd>I</kbd> `*italic*`, <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> `` `code` ``. Press again to remove the formatting. Without a selection, the markers are inserted and the cursor is placed between them.
 * <kbd>ctrl/cmd</kbd> + <kbd>L</kbd> turns the current or the selected lines into a dash list, <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> into a numbered list. Press again to turn them back.
 * Pressing <kbd>enter</kbd> in a list starts the next item, with the next number in numbered lists. <kbd>enter</kbd> on an empty item ends the list. Switch off with `"continue_lists": false`.
+* <kbd>tab</kbd> in a list item indents the whole item one level, <kbd>shift</kbd> + <kbd>tab</kbd> moves it back. An indented numbered item starts at 1.
 * Lists are highlighted at any nesting level, and dashes and numbers can be nested in each other.
 
 #### New notes and links
@@ -1449,6 +1450,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 * Citations with a prefix or without author are recognized and highlighted: `[-@smith2020]`, `[e.g., @smith2020, p. 3; @miller2019]`. Each citekey is clickable on its own.
 * A plain click into a citation places the cursor, so you can edit it. <kbd>ctrl/cmd</kbd> + click opens the notes citing the source. Use `"citations_need_cmd_click": false` to go back to the plain click.
+* Choose your citation style with `"csl": "apa-6th-edition.csl"` and put the `.csl` file into your notes folder (a full path works, too). It is used for the automatic bibliography, for full references, and for the export to Word and PDF. Without it you get pandoc's default, Chicago author-date. A note can have its own style with a line `csl: name.csl` in its YAML header.
 * The [automatic bibliography](#automatic-bibliographies) works with current versions of pandoc and is produced in one go, which is much faster for long notes.
 * <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>R</kbd> lets you pick a source and inserts its full reference at the cursor, e.g. `Weick, Karl E. 1995. Sensemaking in Organizations. Sage.`
 * In the citation list, and in all other selection lists, type several words to narrow down quickly: `weick 1995` or `sensemaking weick`. Case and accents don't matter (`gumusay` finds Gümüsay).
@@ -1462,6 +1464,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking.
 * The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it.
 * Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
+* The entries of the [table of contents](#automatic-table-of-contents) are clickable: a click jumps to the section.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
 
 #### Notes in their own windows
