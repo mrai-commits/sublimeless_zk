@@ -5,6 +5,14 @@ from pathlib import Path
 from shutil import copy2
 
 
+CRITIC_DEFAULT_STYLES = {
+    'critic.addition': {'color': '#1a7f37', 'background': '#dafbe1'},
+    'critic.deletion': {'color': '#cf222e', 'background': '#ffebe9'},
+    'critic.highlight': {'color': '#1f2328', 'background': '#fff8c5'},
+    'critic.comment': {'color': '#8250df', 'style': 'italic'},
+}
+
+
 class Theme:
 
     @staticmethod
@@ -151,6 +159,12 @@ class Theme:
                       'list.ordered', 'tag', 'citekey', 'zettel.link', 'comment',
                       'footnote', 'search.name', 'search.spec', 'search.code'):
             self.get_theme_style(style)
+
+        # CriticMarkup (new in 1.0). Themes may define these styles; if they
+        # don't, the defaults below are readable on light and dark themes.
+        for style, default in CRITIC_DEFAULT_STYLES.items():
+            source = theme_d if style in theme_d else {style: dict(default)}
+            self.style_infos[style] = self.get_style(source, style)
 
         link_dict = theme_d.get('link', {})
         self.style_infos['link.caption'] = self.get_style(link_dict, 'title')

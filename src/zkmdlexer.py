@@ -38,6 +38,7 @@ class ZkMdLexer(QsciLexerCustom):
         # a plain click into a citation places the cursor (to edit it);
         # Cmd/Ctrl+click or the follow-link key opens the citing notes
         self.citations_need_modifier = self.settings.get('citations_need_cmd_click', True)
+        self.critic_markup = self.settings.get('critic_markup', False)
         editor = self.parent()
         editor.indicatorClicked.connect(self.on_click_indicator)
         self.setAutoIndentStyle(0) # we are block based --> use blockLookback
@@ -73,7 +74,9 @@ class ZkMdLexer(QsciLexerCustom):
         default_font = self.theme.font_info['face']
         default_size = self.theme.font_info['size']
 
-        for styleid, style in enumerate(self.theme.style_infos):
+        for index, style in enumerate(self.theme.style_infos):
+            # Scintilla reserves the style numbers 32 to 39 for itself
+            styleid = index if index < 32 else index + 8
             #print(f'Initializing style {styleid:02d} : {style:22} : '
             #      f'{self.theme.style_infos[style]}')
             self.style2id[style] = styleid
@@ -161,6 +164,9 @@ class ZkMdLexer(QsciLexerCustom):
         editor.SendScintilla(QsciScintilla.SCI_SETINDICATORVALUE, startpos)
         # Now apply the indicator-style on the chosen text
         editor.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, b_start, b_length)
+
+    critic_re = re.compile(r'\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}|\{==.*?==\}|\{>>.*?<<\}', flags=re.DOTALL)
+    critic_styles = {'++': 'critic.addition', '--': 'critic.deletion', '==': 'critic.highlight', '>>': 'critic.comment'}
 
     non_ascii_re = re.compile(r'[^\x00-\x7f]')
     # a pandoc citation in brackets: anything may precede a key ("e.g., ",
@@ -637,6 +643,20 @@ class ZkMdLexer(QsciLexerCustom):
             regions.append((b - 1, b, match.group(3), 'text.italic.symbol'))
             # consume
             text = text[:a] + 'i' * len(match.group()) + text[b:]
+
+        # CriticMarkup: {++added++} {--deleted--} {~~old~>new~~} {==marked==} {>>comment<<}
+        if self.critic_markup:
+            for match in self.critic_re.finditer(text):
+                a, b = match.span()
+                kind = match.group()[1:3]
+                if kind == '~~':
+                    arrow = match.group().find('~>')
+                    if arrow < 0:
+                        continue
+                    regions.append((a, a + arrow, 'nop', 'critic.deletion'))
+                    regions.append((a + arrow, b, 'nop', 'critic.addition'))
+                else:
+                    regions.append((a, b, 'nop', self.critic_styles[kind]))
 
         # comments
         p = re.compile(r'(<!--)(.|\n)*?(-->)')

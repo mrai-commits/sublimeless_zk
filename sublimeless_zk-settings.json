@@ -148,4 +148,10 @@
     // Set to false for the rule before 1.0: all words must be found.
     "search_comma_is_and": true,
 
+    // Highlight CriticMarkup (http://criticmarkup.com):
+    //    {++added++}  {--deleted--}  {~~old~>new~~}  {==marked==}  {>>comment<<}
+    // Themes can set the colors with "critic.addition", "critic.deletion",
+    // "critic.highlight" and "critic.comment".
+    "critic_markup": false,
+
 }

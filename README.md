@@ -1459,6 +1459,11 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
 
+#### CriticMarkup
+
+* With `"critic_markup": true`, [CriticMarkup](http://criticmarkup.com) is highlighted: `{++added++}`, `{--deleted--}`, `{~~old~>new~~}`, `{==marked==}`, and `{>>comment<<}`.
+* The colors work with all themes. To change them, add `"critic.addition"`, `"critic.deletion"`, `"critic.highlight"`, and `"critic.comment"` to [your theme](#customizing-themes), e.g. `"critic.addition": {"color": "#1a7f37", "background": "#dafbe1"}`.
+
 #### Export to Word and PDF
 
 * File > Export Note to Word... and File > Export Note to PDF... save the current note as a `.docx` or `.pdf` file and open it.

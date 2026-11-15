@@ -123,6 +123,22 @@ def test_speed(app):                           # item 27
     check('10,000-word note restyles in under 150 ms', ms < 150)
 
 
+def test_critic_markup(app):                   # item 20
+    path = note('201801010203 Critic.md', '# Critic\n\nKeep {++added++} and {--gone--} and {~~old~>new~~}, {==marked==}{>>why<<} end.\n\nNumbered:\n\n1. item [@smith2020]\n')
+    e = app.open_document(path); app.app.processEvents()
+    l = line_of(e, 'Keep')
+    text = e.text(l)
+    check('off by default', style_at(e, l, text.index('added')), 'default')
+    e.lexer().critic_markup = True
+    e.lexer().styleText(0, len(e.text())); app.app.processEvents()
+    for word, style in (('added', 'critic.addition'), ('gone', 'critic.deletion'), ('old', 'critic.deletion'),
+                        ('new', 'critic.addition'), ('marked', 'critic.highlight'), ('why', 'critic.comment')):
+        check('CriticMarkup: ' + word, style_at(e, l, text.index(word)), style)
+    check('text around stays plain', style_at(e, l, text.index(' end.') + 1), 'default')
+    l2 = line_of(e, '1. item')
+    check('other highlighting still works beside it', style_at(e, l2, e.text(l2).index('@smith')), 'citekey')
+
+
 import zkutils, sublimeless_zk
 sublimeless_zk.open_hyperlink = lambda url: None      # never start a browser in tests
-run_gui_tests([test_ordered_lists, test_non_ascii_offsets, test_citations, test_web_links, test_speed])
+run_gui_tests([test_ordered_lists, test_non_ascii_offsets, test_citations, test_web_links, test_speed, test_critic_markup])
