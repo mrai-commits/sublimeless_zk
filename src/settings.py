@@ -9,8 +9,9 @@ settings_filn = os.path.join(Path.home(), 'sublimeless_zk-settings.json')
 
 def base_dir():
     if getattr(sys, 'frozen', False):
-        # frozen
-        base_dir = os.path.dirname(sys.executable)
+        # frozen: PyInstaller puts the data files into sys._MEIPASS
+        # (the _internal folder, or Contents/Resources in a macOS app)
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
     else:
         # unfrozen
         base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')

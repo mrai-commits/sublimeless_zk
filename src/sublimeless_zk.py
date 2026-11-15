@@ -2205,5 +2205,51 @@ class Sublimeless_Zk(QObject):
 
 
 
+def self_test():
+    """
+    `sublimeless_zk --self-test`: start the app, check that everything a
+    packaged build needs is in place, print the result and quit. Used by the
+    automated builds; exit code 0 means the package is complete.
+    """
+    app = Sublimeless_Zk()
+    result = {'code': 1}
+
+    def check():
+        from PyQt5.QtGui import QFontDatabase
+        problems = []
+        if 'Ubuntu Mono' not in QFontDatabase().families():
+            problems.append('bundled fonts are missing')
+        if not get_pandoc():
+            problems.append('bundled pandoc is missing')
+        if not os.path.exists(os.path.join(base_dir(), 'data', 'setevi-template.html')):
+            problems.append('HTML export template is missing')
+        if app.gui.qtabs.count() < 1:
+            problems.append('the welcome note did not open')
+        try:
+            editor = app.get_active_editor()
+            editor.setText('# Self test\n\n1. item [@key] and [[201801010101]]\n')
+            app.app.processEvents()
+            import tempfile
+            out = os.path.join(tempfile.mkdtemp(), 'selftest.pdf')
+            noteexport.export_pdf(editor.text(), out, get_pandoc())
+            noteexport.export_docx(editor.text(), out[:-4] + '.docx', get_pandoc())
+            editor.setModified(False)
+        except Exception as e:
+            problems.append(f'editing or export failed: {e!r}')
+        print('SELFTEST', 'OK' if not problems else 'FAILED: ' + '; '.join(problems))
+        sys.stdout.flush()
+        os._exit(0 if not problems else 1)
+
+    original = app.connect_signals
+    def patched():
+        original()
+        QTimer.singleShot(3000, check)
+    app.connect_signals = patched
+    app.run()
+
+
 if __name__ == '__main__':
-    Sublimeless_Zk().run()
+    if '--self-test' in sys.argv:
+        self_test()
+    else:
+        Sublimeless_Zk().run()

@@ -1,0 +1,107 @@
+name: Build
+
+# Builds the app for macOS, Windows and Linux.
+# - every push to the 1.0 branch: test builds, downloadable from the run page (Artifacts)
+# - a tag like v1.0: the same builds are attached to a GitHub release
+on:
+  push:
+    branches: [sublimeless-1.0]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: macos-latest,   label: macOS-arm64}
+          - {os: windows-latest, label: Windows}
+          - {os: ubuntu-22.04,   label: Linux}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Linux system packages for Qt
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libegl1 libgl1 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-cursor0 \
+            libxcb-shape0 libnss3 libasound2 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxi6
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build MultiMarkdown (optional parser for the HTML export)
+        continue-on-error: true
+        run: python -c "import pymmd; pymmd.build_mmd()"
+
+      - name: Run the tests
+        if: runner.os == 'Linux'
+        run: ./run_tests.sh
+
+      - name: Build the app
+        run: pyinstaller --noconfirm --log-level WARN sublimeless_zk.spec
+
+      - name: Self-test of the packaged app (Linux)
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+        run: xvfb-run -a -s "-screen 0 1400x900x24" dist/sublimeless_zk/sublimeless_zk --self-test
+
+      - name: Self-test of the packaged app (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 5
+        run: dist/Sublimeless_ZK.app/Contents/MacOS/sublimeless_zk --self-test
+
+      - name: Self-test of the packaged app (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\sublimeless_zk\sublimeless_zk.exe -ArgumentList '--self-test' -Wait -PassThru
+          Write-Host "self-test exit code: $($p.ExitCode)"
+          exit $p.ExitCode
+
+      - name: Package (macOS)
+        if: always() && runner.os == 'macOS'
+        run: ditto -c -k --keepParent dist/Sublimeless_ZK.app Sublimeless_ZK-macOS-arm64.zip
+
+      - name: Package (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist\sublimeless_zk -DestinationPath Sublimeless_ZK-Windows.zip
+
+      - name: Package (Linux)
+        if: always() && runner.os == 'Linux'
+        run: tar -C dist -czf Sublimeless_ZK-Linux.tar.gz sublimeless_zk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Sublimeless_ZK-${{ matrix.label }}
+          path: |
+            Sublimeless_ZK-*.zip
+            Sublimeless_ZK-*.tar.gz
+          if-no-files-found: warn
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES-1.0.md
+          files: |
+            Sublimeless_ZK-*.zip
+            Sublimeless_ZK-*.tar.gz

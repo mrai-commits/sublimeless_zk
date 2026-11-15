@@ -72,3 +72,7 @@ output/
 
 _deploy/
 if_Note_Book_Alt_86976.ico
+build/
+dist/
+__pycache__/
+*.pyc
