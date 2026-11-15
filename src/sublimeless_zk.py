@@ -56,6 +56,7 @@ class Sublimeless_Zk(QObject):
         self._show_images_disabled = True and getattr(sys, 'frozen', False)
         self.note_windows = []          # notes shown in their own windows
         self.spell = None               # spellui.SpellUnderliner, once started
+        self._layout_restored = False   # the saved window layout has been applied
         self._note_windows_closing = False
         self.last_note_view = None
         self.recent_projects_limit = 10
@@ -679,6 +680,8 @@ class Sublimeless_Zk(QObject):
                 pass
         self.gui.apply_font_settings(test_settings)
         self.gui.restore_layout(self.app_state.window)
+        self._layout_restored = True
+        self.reopen_note_windows()
         self.start_spellcheck()
         for i in range(self.gui.qtabs.count()):
             editor = self.gui.qtabs.widget(i)
@@ -1060,7 +1063,9 @@ class Sublimeless_Zk(QObject):
     def save_appstate(self):
         print('save appstate')
         self.update_open_notes()
-        if self.gui is not None and self.gui.isVisible():
+        # not before the saved layout was applied at start: opening the folder
+        # saves the state too, and would overwrite it with the default layout
+        if self.gui is not None and self.gui.isVisible() and self._layout_restored:
             note_windows = self.app_state.window.get('note_windows', {})
             self.app_state.window = self.gui.layout_state()
             self.app_state.window['note_windows'] = note_windows
