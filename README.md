@@ -242,6 +242,7 @@ This app comes with sane defaults. You can start using it right away. Once you h
 * Move line up: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>U</kbd>
 * Move line down: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>D</kbd>
 * [Run external command](#external-commands): <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>X</kbd>
+* [Show all shortcuts in the app](#user-interface): <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> *(new in 1.0)*
 * [Bold](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>B</kbd>, [Italic](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>I</kbd>, [Inline code](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> *(new in 1.0)*
 * [Dash list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>L</kbd>, [Numbered list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> *(new in 1.0)*
 * [Insert bibliography](#automatic-bibliographies) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>B</kbd> *(changed in 1.0)*
@@ -1476,6 +1477,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 #### User interface
 
+* <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> shows all keyboard shortcuts in one window, grouped like the menus. Type to filter, e.g. `tag`; <kbd>esc</kbd> closes it. The [command palette](#command-palette) shows the shortcut beside each command.
 * The status bar shows the number of words in the selection: `Words: 12 of 950`.
 * The sizes of the panels, and the size and position of the window, are remembered.
 * In the lists of the command palette and the note, tag, and citation selectors, <kbd>up</kbd> on the first entry jumps to the last one, and <kbd>down</kbd> on the last to the first.

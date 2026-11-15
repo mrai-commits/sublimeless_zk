@@ -208,6 +208,37 @@ def test_bundled_fonts(app):                   # Ubuntu Mono ships with the app
     check('the editor really uses it', QFontInfo(QFont('Ubuntu Mono', 12)).family(), 'Ubuntu Mono')
 
 
+def test_shortcut_cheatsheet(app):
+    import cheatsheet
+    dialog = app.shortcuts_dialog()
+    commands = dialog.visible_commands()
+    groups = [dialog.tree.topLevelItem(i).text(0) for i in range(dialog.tree.topLevelItemCount())]
+    check('cheatsheet is grouped like the menus', groups[:5] + groups[-1:],
+          ['File', 'Edit', 'Search', 'View', 'Tools', 'Typing and mouse'])
+    check('it lists menu commands with shortcuts', 'Format: Bold' in commands and 'Insert Bibliography' in commands)
+    check('it lists what is typed or clicked', 'Insert a link to a note' in commands)
+    check('it lists itself', 'Keyboard Shortcuts' in commands)
+    dialog.filter_edit.setText('tag')
+    filtered = dialog.visible_commands()
+    check('the filter narrows the list', 0 < len(filtered) < len(commands) and all('tag' in c.lower() for c in filtered))
+    dialog.filter_edit.setText('bold')
+    item = [c for c in dialog.visible_commands()]
+    check('filter finds one command', item, ['Format: Bold'])
+    check('shortcut opens the cheatsheet', [k.toString() for k in app.shortcutsAction.shortcuts()], ['Ctrl+?', 'Ctrl+Shift+/'])
+    dialog.close()
+    # command palette shows the shortcut beside each command and still runs it
+    seen = {}
+    def fake_panel(parent, title, choices, **k):
+        seen.update(choices)
+        key = [c for c in choices if c.startswith('Show all Tags by number')][0]
+        return key, choices[key]
+    szk.show_fuzzy_panel = fake_panel
+    app.show_command_palette()
+    check('palette entries carry their shortcut', any(k.startswith('Bold    [') for k in seen))
+    with open(app.project.get_search_results_filn(), encoding='utf-8') as f:
+        check('a palette entry still runs its command', f.read().startswith('# All Tags'))
+
+
 def test_citation_needs_modifier(app):         # item 41
     e = app.open_document(N2); app.app.processEvents()
     clicked = []
@@ -224,4 +255,4 @@ def test_citation_needs_modifier(app):         # item 41
 run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
-               test_click_link_close_parent, test_bundled_fonts, test_citation_needs_modifier])
+               test_click_link_close_parent, test_bundled_fonts, test_shortcut_cheatsheet, test_citation_needs_modifier])

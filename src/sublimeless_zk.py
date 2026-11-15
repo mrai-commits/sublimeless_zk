@@ -40,6 +40,7 @@ from findrefcountdlg import show_find_refcount_dlg
 from notewatcher import NotesWatcher
 import editfeatures
 import noteexport
+import cheatsheet
 
 
 class Sublimeless_Zk(QObject):
@@ -73,6 +74,8 @@ class Sublimeless_Zk(QObject):
 
     def init_actions(self):
         self.aboutAction = QAction('About Sublimeless Zettelkasten', self)
+        self.shortcutsAction = QAction('Keyboard Shortcuts', self)
+        self.shortcutsAction.setShortcuts([QKeySequence(keys) for keys in self.SHORTCUTS_KEYS])
         self.findReplaceAction = QAction('Find/replace...', self)
         self.findReplaceAction.setShortcut('Ctrl+F')
         self.findInFilesAction = QAction('Find in files...', self)
@@ -407,6 +410,7 @@ class Sublimeless_Zk(QObject):
         tools.addAction(self.runExternalCommandAction)
         tools.addAction(self.editExternalCommandsAction)
 
+        about.addAction(self.shortcutsAction)
         about.addAction(self.aboutAction)
 
     def connect_signals(self):
@@ -418,6 +422,7 @@ class Sublimeless_Zk(QObject):
         self.findReplaceAction.triggered.connect(self.find_and_replace)
         self.findInFilesAction.triggered.connect(self.find_in_files)
         self.aboutAction.triggered.connect(self.about)
+        self.shortcutsAction.triggered.connect(self.show_shortcuts)
         self.newAction.triggered.connect(self.zk_new_zettel)
         self.openFolderAction.triggered.connect(self.open_folder)
         self.saveAction.triggered.connect(self.save)
@@ -1089,6 +1094,18 @@ class Sublimeless_Zk(QObject):
                             f'details are in {log_filn}', 20)
         except Exception:
             pass
+
+    # Cmd+? is typed as Cmd+Shift+/ on most keyboards
+    SHORTCUTS_KEYS = ('Ctrl+?', 'Ctrl+Shift+/')
+
+    def shortcuts_dialog(self):
+        groups = cheatsheet.collect_menu_shortcuts(self.gui.menuBar())
+        groups.append(('Typing and mouse', cheatsheet.TYPING_AND_MOUSE))
+        return cheatsheet.ShortcutsDialog(self.gui, groups, self.SHORTCUTS_KEYS)
+
+    def show_shortcuts(self):
+        """The cheatsheet: all keyboard shortcuts in one window, with a filter."""
+        self.shortcuts_dialog().exec_()
 
     def notify(self, msg, seconds=8):
         """Show a message in the status bar for a few seconds."""
@@ -1922,7 +1939,11 @@ class Sublimeless_Zk(QObject):
     def show_command_palette(self):
         editor = self.get_active_editor()   # for maybe later: external command
 
-        d = {x: x for x in self.command_palette_actions.keys()}
+        # each command with its shortcut beside it
+        d = {}
+        for text, action in self.command_palette_actions.items():
+            keys = cheatsheet.shortcut_text(action)
+            d[f'{text}    [{keys}]' if keys else text] = text
 
         # add external commands
         settings_dir = os.path.join(self.app_state.home, 'sublimeless_zk.rc')
@@ -1937,7 +1958,7 @@ class Sublimeless_Zk(QObject):
                 # it is an external command
                 self._run_external_command(aux, editor)
             else:
-                self.command_palette_actions[actionText].activate(QAction.Trigger)
+                self.command_palette_actions[aux].activate(QAction.Trigger)
     
     def show_hide_sidepanel(self):
         if self.gui.saved_searches_editor.isVisible():
