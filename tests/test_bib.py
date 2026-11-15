@@ -68,7 +68,7 @@ if shutil.which('pandoc'):
     results += [
         check('pandoc: no error', Autobib.last_error, ''),
         check('pandoc: one reference per cited key', sorted(bib), sorted(cited)),
-        check('pandoc: reference text', bib.get('@editor2019'), 'Editor, Only, ed. 2019. *Edited Volume*.'),
+        check('pandoc: reference text', bib.get('@editor2019'), 'Editor, Only, ed. 2019. Edited Volume.'),
         check('pandoc: crossref chapter names the book editors', 'Reason' in bib.get('@reason2013a', '')),
     ]
 else:

@@ -261,7 +261,7 @@ class Autobib:
         """
         Extract {citekey: reference text} from pandoc's HTML bibliography,
         where every entry is a <div id="ref-CITEKEY" class="csl-entry">.
-        Emphasis is kept as Markdown (*title*).
+        Plain text: emphasis (italic titles) is dropped.
         """
         from html.parser import HTMLParser
 
@@ -285,15 +285,11 @@ class Autobib:
                 if tag == 'div':
                     self.depth += 1
                     self.parts.append(' ')
-                elif tag in ('em', 'i'):
-                    self.parts.append('*')
 
             def handle_endtag(self, tag):
                 if self.key is None:
                     return
-                if tag in ('em', 'i'):
-                    self.parts.append('*')
-                elif tag == 'div':
+                if tag == 'div':
                     self.depth -= 1
                     if self.depth == 0:
                         self.entries[self.key] = ' '.join(''.join(self.parts).split())
