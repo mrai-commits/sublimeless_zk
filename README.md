@@ -242,6 +242,7 @@ This app comes with sane defaults. You can start using it right away. Once you h
 * Move line up: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>U</kbd>
 * Move line down: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>D</kbd>
 * [Run external command](#external-commands): <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>X</kbd>
+* [Open the note in its own window](#notes-in-their-own-windows): <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>O</kbd>, or double-click its tab *(new in 1.0)*
 * [Show all shortcuts in the app](#user-interface): <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> *(new in 1.0)*
 * [Bold](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>B</kbd>, [Italic](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>I</kbd>, [Inline code](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> *(new in 1.0)*
 * [Dash list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>L</kbd>, [Numbered list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> *(new in 1.0)*
@@ -1461,6 +1462,14 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it.
 * Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
+
+#### Notes in their own windows
+
+* <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>O</kbd>, or a double-click on a tab, opens the note in a window of its own, so you can see and edit several notes side by side.
+* The note stays open as a tab. The window and the tab show the same text: what you type in one appears in the other, and there is only one note to save.
+* All commands and shortcuts work in the window and apply to its note: saving, formatting, inserting links and citations, find/replace.
+* Links clicked in a note window open in the main window, so the window keeps its note.
+* <kbd>ctrl/cmd</kbd> + <kbd>W</kbd> in a note window closes the window; the tab stays. Closing the tab closes its window.
 
 #### CriticMarkup
 

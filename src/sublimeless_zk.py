@@ -41,6 +41,7 @@ from notewatcher import NotesWatcher
 import editfeatures
 import noteexport
 import cheatsheet
+from notewindow import NoteWindow
 
 
 class Sublimeless_Zk(QObject):
@@ -51,6 +52,8 @@ class Sublimeless_Zk(QObject):
         self.app_state = AppState()
         self.project = Project(self.app_state.recent_projects[-1])
         self._show_images_disabled = True and getattr(sys, 'frozen', False)
+        self.note_windows = []          # notes shown in their own windows
+        self.last_note_view = None
         self.recent_projects_limit = 10
         self.recent_projects_actions = []
         self.autosave_timer = QTimer()
@@ -75,6 +78,8 @@ class Sublimeless_Zk(QObject):
     def init_actions(self):
         self.aboutAction = QAction('About Sublimeless Zettelkasten', self)
         self.shortcutsAction = QAction('Keyboard Shortcuts', self)
+        self.noteWindowAction = QAction('Open Note in its own Window', self)
+        self.noteWindowAction.setShortcut('Ctrl+Shift+O')
         self.shortcutsAction.setShortcuts([QKeySequence(keys) for keys in self.SHORTCUTS_KEYS])
         self.findReplaceAction = QAction('Find/replace...', self)
         self.findReplaceAction.setShortcut('Ctrl+F')
@@ -390,6 +395,7 @@ class Sublimeless_Zk(QObject):
         view.addAction(self.showAllNotesAction)
         view.addAction(self.showRecentViewsAction)
         view.addAction(self.showReferencingNotesAction)
+        view.addAction(self.noteWindowAction)
         view.addAction(self.showTagsAction)
         view.addAction(self.showTagsByCountAction)
         view.addAction(self.followLinkCloseParentAction)
@@ -423,6 +429,9 @@ class Sublimeless_Zk(QObject):
         self.findInFilesAction.triggered.connect(self.find_in_files)
         self.aboutAction.triggered.connect(self.about)
         self.shortcutsAction.triggered.connect(self.show_shortcuts)
+        self.noteWindowAction.triggered.connect(lambda: self.open_note_window())
+        self.gui.qtabs.tabBarDoubleClicked.connect(self.open_note_window_for_tab)
+        self.app.focusChanged.connect(self.on_focus_changed)
         self.newAction.triggered.connect(self.zk_new_zettel)
         self.openFolderAction.triggered.connect(self.open_folder)
         self.saveAction.triggered.connect(self.save)
@@ -517,6 +526,7 @@ class Sublimeless_Zk(QObject):
             Qt.AltModifier | Qt.Key_B,
             Qt.AltModifier | Qt.Key_N,
             Qt.AltModifier | Qt.Key_R,
+            Qt.ShiftModifier | Qt.Key_O,
             Qt.ShiftModifier | Qt.Key_I,
             Qt.ShiftModifier | Qt.Key_H,
             Qt.ShiftModifier | Qt.Key_T,
@@ -800,7 +810,12 @@ class Sublimeless_Zk(QObject):
     def unsaved(self):
         editor = self.gui.qtabs.currentWidget()
         tab_index = self.gui.qtabs.currentIndex()
-        if editor is None:
+        sender = self.sender()
+        if getattr(sender, 'primary_editor', None) is not None:
+            # typed in a note window: mark the tab that owns the note
+            editor = sender.primary_editor
+            tab_index = self.gui.qtabs.indexOf(editor)
+        if editor is None or tab_index < 0:
             return
         if editor.isModified():
             self.gui.qtabs.setTabText(tab_index, os.path.basename(editor.file_name) + '*')
@@ -813,16 +828,87 @@ class Sublimeless_Zk(QObject):
         Helper function to find out where the keyboard input focus is
         """
         editors = [self.gui.qtabs.widget(i) for i in range(self.gui.qtabs.count())]
-        if self.app.focusWidget() in editors:
+        views = [window.view for window in self.note_windows]
+        if self.app.focusWidget() in editors or self.app.focusWidget() in views:
             return self.app.focusWidget()
         elif self.app.focusWidget() == self.gui.search_results_editor:
             return self.gui.search_results_editor
         elif self.app.focusWidget() == self.gui.saved_searches_editor:
             return self.gui.saved_searches_editor
         else:
+            # focus is in a dialog or a list: the note the user worked in last,
+            # if that was a note in its own window
+            if self.last_note_view in views:
+                return self.last_note_view
             if self.gui.qtabs.count():
                 return self.gui.qtabs.currentWidget()
             return None
+
+    #
+    # Notes in their own windows
+    #
+
+    def on_focus_changed(self, old, new):
+        if new in [window.view for window in self.note_windows]:
+            self.last_note_view = new
+        elif isinstance(new, ZettelkastenScintilla):
+            self.last_note_view = None      # back in the main window
+
+    @staticmethod
+    def primary_of(editor):
+        """The tab editor owning the document of an editor (itself for a tab)."""
+        return getattr(editor, 'primary_editor', None) or editor
+
+    def windows_of(self, primary):
+        return [window for window in self.note_windows if window.primary is primary]
+
+    def open_note_window_for_tab(self, index):
+        if index >= 0:
+            self.open_note_window(self.gui.qtabs.widget(index))
+
+    def open_note_window(self, editor=None):
+        """
+        Show a note in a window of its own, beside the main window. The note
+        stays open as a tab; the window is a second view of the same text.
+        """
+        if editor is None:
+            editor = self.get_active_editor()
+        if not isinstance(editor, ZettelkastenScintilla) or editor.editor_type != 'normal' or not editor.file_name:
+            self.notify('Only notes can be opened in their own window')
+            return None
+        primary = self.primary_of(editor)
+        existing = self.windows_of(primary)
+        if existing:
+            window = existing[0]
+        else:
+            view = self.gui.new_zk_editor(primary.file_name, settings=self.project.settings)
+            window = NoteWindow(view, primary, self.command_palette_actions.values())
+            self.connect_editor_signals(view)
+            view.setCursorPosition(*primary.getCursorPosition())
+            # place it beside the previous one, not exactly on top
+            offset = 30 * (len(self.note_windows) % 8)
+            corner = self.gui.geometry().topLeft()
+            window.move(corner.x() + 60 + offset, corner.y() + 40 + offset)
+            window.closed.connect(self.on_note_window_closed)
+            primary.modificationChanged.connect(lambda *args, w=window: w.update_title())
+            self.note_windows.append(window)
+        window.show()
+        window.raise_()
+        window.activateWindow()
+        window.view.setFocus()
+        return window
+
+    def on_note_window_closed(self, window):
+        if window in self.note_windows:
+            self.note_windows.remove(window)
+        if self.last_note_view is window.view:
+            self.last_note_view = None
+
+    def close_note_windows(self, primary=None):
+        """Close the windows of one note, or all of them."""
+        for window in list(self.note_windows):
+            if primary is None or window.primary is primary:
+                window.close()
 
     def document_to_index_editor(self, filn):
         for i in range(self.gui.qtabs.count()):
@@ -852,6 +938,7 @@ class Sublimeless_Zk(QObject):
         if not folder:
             folder = str(QFileDialog.getExistingDirectory(self.gui, "Select Directory"))
         if folder:
+            self.close_note_windows()
             self.gui.qtabs.clear()
             self.notes_watcher.reset()
             self.gui.notelist_panel.clear()
@@ -984,6 +1071,12 @@ class Sublimeless_Zk(QObject):
     ''''''
 
     def close_current_tab(self):
+        active = self.get_active_editor()
+        window = getattr(active, 'note_window', None)
+        if window is not None and self.app.activeWindow() is window:
+            # in a note window, Close closes the window; the tab stays
+            window.close()
+            return
         self.tab_close_requested(self.gui.qtabs.currentIndex())
 
     def cycle_tabs_forward(self):
@@ -1014,6 +1107,11 @@ class Sublimeless_Zk(QObject):
     def save(self):
         tab_index = self.gui.qtabs.currentIndex()
         editor = self.gui.qtabs.currentWidget()
+        active = self.get_active_editor()
+        if getattr(active, 'primary_editor', None) is not None:
+            # Save pressed in a note window: save that note
+            editor = active.primary_editor
+            tab_index = self.gui.qtabs.indexOf(editor)
         if editor:
             if editor.editor_type == 'theme' or editor.editor_type == 'settings' or editor.editor_type == 'build-commands':
                 txt = editor.text()
@@ -1767,6 +1865,7 @@ class Sublimeless_Zk(QObject):
                                                 QMessageBox.No)
                 if buttonReply == QMessageBox.No:
                     return    # ignore
+        self.close_note_windows(editor)
         self.gui.qtabs.removeTab(index)
         self.gui.notelist_panel.remove_note_filn(editor.file_name)
         self.notes_watcher.on_file_closed(editor.file_name)
@@ -1837,12 +1936,24 @@ class Sublimeless_Zk(QObject):
             self.gui.apply_theme(new_theme=theme)
             #QMessageBox.information(self.gui,'New Theme selected', f'Please restart Sublimeless_ZK to load the {selected_theme} theme')
 
+    def focus_primary(self, editor):
+        """
+        For commands that replace or remove a note (rename, delete): work on
+        the note's tab, and close the windows that show the same note.
+        """
+        primary = self.primary_of(editor)
+        if primary is not editor or self.windows_of(primary):
+            self.close_note_windows(primary)
+            self.gui.qtabs.setCurrentWidget(primary)
+        return primary
+
     def rename_note(self):
         editor = self.get_active_editor()
         if not editor:
             return
         if editor.editor_type != 'normal':
             return
+        editor = self.focus_primary(editor)
         note_filn = os.path.basename(editor.file_name)
         note_id, title = os.path.splitext(os.path.basename(note_filn))[0].split(' ', 1)
         new_title = show_input_panel(self.gui, 'New Title:', title)
@@ -1878,6 +1989,7 @@ class Sublimeless_Zk(QObject):
             return
         if editor.editor_type != 'normal':
             return
+        editor = self.focus_primary(editor)
         note_filn = os.path.basename(editor.file_name)
         msg = f"Are you sure you want to delete note {note_filn} ?"
         buttonReply = QMessageBox.question(self.gui, 'Delete Note', msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -2122,6 +2234,13 @@ class Sublimeless_Zk(QObject):
                     editor.setCursorPosition(line_index, 0)
 
     def mainwindow_close_handler(self):
+        may_close = self._mainwindow_may_close()
+        if may_close:
+            # note windows are views of the tabs: they go with the main window
+            self.close_note_windows()
+        return may_close
+
+    def _mainwindow_may_close(self):
         self.save_appstate()
         if self.autosave_interval > 0:
             self.save_all()
