@@ -411,12 +411,7 @@ There is also a variant `monokai-large-headings`:
 
 ![solarized](imgs/solarized.png)
 
-If you want the best aesthetics, [download](https://assets.ubuntu.com/v1/fad7939b-ubuntu-font-family-0.83.zip) the [Ubuntu Mono](https://design.ubuntu.com/font/) fonts and install the following 4 by double-clicking them:
-
-* `UbuntuMono-R.ttf`
-* `UbuntuMono-RI.ttf`
-* `UbuntuMono-B.ttf`
-* `UbuntuMono-BI.ttf`
+The themes use the [Ubuntu Mono](https://design.ubuntu.com/font/) fonts. Since version 1.0 they come with the app, so you don't have to install them any more *(new in 1.0)*.
 
 ##### C64 Color Scheme
 
@@ -1471,6 +1466,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * The sizes of the panels, and the size and position of the window, are remembered.
 * In the lists of the command palette and the note, tag, and citation selectors, <kbd>up</kbd> on the first entry jumps to the last one, and <kbd>down</kbd> on the last to the first.
 * Long notes: typing stays fast in notes of 10,000 words and more.
+* The Ubuntu Mono fonts used by the themes come with the app and need not be installed.
 
 
 ## Configuration

@@ -29,7 +29,7 @@ from autobib import Autobib
 from textproduction import TextProduction
 from tagsearch import TagSearch
 from imagehandler import ImageHandler
-from settings import settings_filn, base_dir, get_settings, get_pandoc, get_real_error_lineno
+from settings import settings_filn, base_dir, get_settings, get_pandoc, get_real_error_lineno, load_bundled_fonts
 from about import AboutDlg
 from findandreplace import FindDlg
 from semantic_zk import SemanticZKDialog
@@ -613,6 +613,7 @@ class Sublimeless_Zk(QObject):
 
     def run(self):
         self.app = QApplication(sys.argv)
+        load_bundled_fonts()
         if sys.platform == 'darwin':
             # TODO: this sort-of fixes the menu formatting for [,[ style shortcuts
             # self.app.setAttribute(Qt.AA_DontUseNativeMenuBar)

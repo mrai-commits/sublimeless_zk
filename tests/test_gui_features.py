@@ -200,6 +200,14 @@ def test_click_link_close_parent(app):         # item 25, with the mouse
     check('a plain click keeps the parent open', any('Second' in n for n in names), True)
 
 
+def test_bundled_fonts(app):                   # Ubuntu Mono ships with the app
+    from PyQt5.QtGui import QFontDatabase, QFontInfo, QFont
+    check('Ubuntu Mono is available without installing it', 'Ubuntu Mono' in QFontDatabase().families())
+    check('all four styles are loaded', sorted(QFontDatabase().styles('Ubuntu Mono')),
+          ['Bold', 'Bold Italic', 'Italic', 'Regular'])
+    check('the editor really uses it', QFontInfo(QFont('Ubuntu Mono', 12)).family(), 'Ubuntu Mono')
+
+
 def test_citation_needs_modifier(app):         # item 41
     e = app.open_document(N2); app.app.processEvents()
     clicked = []
@@ -216,4 +224,4 @@ def test_citation_needs_modifier(app):         # item 41
 run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
-               test_click_link_close_parent, test_citation_needs_modifier])
+               test_click_link_close_parent, test_bundled_fonts, test_citation_needs_modifier])

@@ -17,6 +17,25 @@ def base_dir():
     return base_dir
 
 
+def load_bundled_fonts():
+    """
+    Make the fonts in the app's fonts folder (Ubuntu Mono) available to the
+    app, so they do not have to be installed on the computer. Needs a
+    running QApplication. Returns the font families that were loaded.
+    """
+    from PyQt5.QtGui import QFontDatabase
+    families = set()
+    folder = os.path.join(base_dir(), 'fonts')
+    if not os.path.isdir(folder):
+        return families
+    for name in sorted(os.listdir(folder)):
+        if name.lower().endswith(('.ttf', '.otf')):
+            font_id = QFontDatabase.addApplicationFont(os.path.join(folder, name))
+            if font_id >= 0:
+                families.update(QFontDatabase.applicationFontFamilies(font_id))
+    return families
+
+
 default_settings = json.loads(open(os.path.join(base_dir(), 'sublimeless_zk-settings.json'), mode='r', encoding='utf-8', errors='ignore').read())
 
 
