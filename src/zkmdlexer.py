@@ -3,7 +3,7 @@ import sys
 import bisect
 
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.Qsci import *
 from split_regions import CascadingStyleRegions
@@ -41,7 +41,9 @@ class ZkMdLexer(QsciLexerCustom):
         self.citations_need_modifier = self.settings.get('citations_need_cmd_click', True)
         self.critic_markup = self.settings.get('critic_markup', False)
         editor = self.parent()
-        editor.indicatorClicked.connect(self.on_click_indicator)
+        editor.indicatorClicked.connect(lambda line, index, keys: self.on_click_indicator(line, index, keys, from_mouse=True))
+        editor.indicatorReleased.connect(self.on_release_indicator)
+        self._anchor_on_release = None
         self.setAutoIndentStyle(0) # we are block based --> use blockLookback
         self.apply_theme()
 
@@ -237,7 +239,16 @@ class ZkMdLexer(QsciLexerCustom):
             return charpos
         return charpos + self._wide_extra[bisect.bisect_left(self._wide_positions, charpos)]
 
-    def on_click_indicator(self, line, index, keys):
+    def on_release_indicator(self, line, index, keys):
+        """Mouse button released on a link: now it is safe to jump inside the note."""
+        anchor, self._anchor_on_release = self._anchor_on_release, None
+        if anchor:
+            # after the editor has finished handling the mouse release:
+            # it still places the cursor at the click
+            QTimer.singleShot(0, lambda: self.hyperlink_clicked.emit(anchor))
+
+    def on_click_indicator(self, line, index, keys, from_mouse=False):
+        self._anchor_on_release = None
         #print('click', line, index, type(keys))
         position = self.parent().positionFromLineIndex(line, index)
         alt = bool(keys & Qt.AltModifier)
@@ -289,7 +300,14 @@ class ZkMdLexer(QsciLexerCustom):
             # no length limit: long addresses wrap over several lines
             match = self.hyperlink_at_click_re.match(self.parent().text(), hyperlink_pos)
             if match and match.group().strip():
-                self.hyperlink_clicked.emit(match.group().strip())
+                target = match.group().strip()
+                if from_mouse and target.startswith('#'):
+                    # a jump inside the note (table of contents). Jumping while
+                    # the mouse button is still down would select everything
+                    # between the click and the place the view scrolls to
+                    self._anchor_on_release = target
+                else:
+                    self.hyperlink_clicked.emit(target)
 
 
     def language(self):
@@ -390,7 +408,9 @@ class ZkMdLexer(QsciLexerCustom):
 
         # headings
         self.headings = []
-        p = re.compile('^(#{1,6})(.+)$', flags=re.MULTILINE)
+        # as in standard Markdown, a heading needs a space after the #:
+        # "#idea" at the start of a line is a tag, not a heading
+        p = re.compile(r'^(#{1,6})([ \t]+\S.*)$', flags=re.MULTILINE)
         for match in p.finditer(text):
             #print('heading', match.groups())
             a = match.start()
@@ -482,16 +502,17 @@ class ZkMdLexer(QsciLexerCustom):
         ### inline markup
 
         # tags
-        p = re.compile(r'([ \t])(#+([^#\W]|[-§]|:[a-zA-Z0-9])+)')
+        # after a space or tab, or at the start of a line
+        p = re.compile(r'(?:(?<=[ \t])|^)(#+(?:[^#\W]|[-§]|:[a-zA-Z0-9])+)', flags=re.MULTILINE)
+        consumed = []
         for match in p.finditer(text):
-            #print('tag', match.groups())
-            a = match.start(2)
-            b = match.end(3)
-            regions.append((a, b, match.group(2), 'tag'))
-            # consume
-            text = text[:a] + 'x' * (len(match.group(2))) + text[b:]
+            a = match.start(1)
+            b = match.end(1)
+            regions.append((a, b, match.group(1), 'tag'))
+            consumed.append((a, b))
             # make clickable
-            self.make_clickable(a, len(match.group(2)), self.indicator_id_tag)
+            self.make_clickable(a, b - a, self.indicator_id_tag)
+        text = self.blank_out(text, consumed)
 
         # inline code
         p = re.compile(r'([`]{1})(?!\s)(.+?)(?<!\s)(\1)')

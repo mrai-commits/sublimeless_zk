@@ -125,6 +125,15 @@ def test_toc_entries_jump(app):
     check('an entry whose heading has a citekey is clickable', e.getCursorPosition()[0], target)
     check('the heading is put at the very top, also with wrapped lines',
           e.SendScintilla(e.SCI_GETFIRSTVISIBLELINE), e.SendScintilla(e.SCI_VISIBLEFROMDOCLINE, target))
+    # a real mouse click: press and release on the entry
+    from PyQt5.QtCore import QPoint
+    e.setCursorPosition(0, 0); e.SendScintilla(e.SCI_SETFIRSTVISIBLELINE, 0); app.app.processEvents()
+    line = [i for i in range(e.lines()) if e.text(i).lstrip().startswith('* [Second @smith2020')][0]
+    pos = e.positionFromLineIndex(line, e.text(line).index('Second') + 2)
+    point = QPoint(e.SendScintilla(e.SCI_POINTXFROMPOSITION, 0, pos) + 2, e.SendScintilla(e.SCI_POINTYFROMPOSITION, 0, pos) + 4)
+    QTest.mouseClick(e.viewport(), Qt.LeftButton, Qt.NoModifier, point); app.app.processEvents()
+    check('a mouse click on an entry jumps too', e.getCursorPosition()[0], target)
+    check('and leaves no text selected', e.hasSelectedText(), False)
     line = [i for i in range(e.lines()) if e.text(i).lstrip().startswith('* [First')][0]
     e.lexer().on_click_indicator(line, e.text(line).index('#first') + 2, 0); app.app.processEvents()
     check('clicking the anchor part works too', e.text(e.getCursorPosition()[0]), '# First part\n')

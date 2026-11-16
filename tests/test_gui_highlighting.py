@@ -123,6 +123,20 @@ def test_speed(app):                           # item 27
     check('10,000-word note restyles in under 150 ms', ms < 150)
 
 
+def test_tag_at_line_start(app):               # item 28 follow-up (C4)
+    path = note('201801010204 Tags.md', '# Real heading\n\nSome text with a #midtag here.\n#linetag starts this line\n#RüloMatts too\n## Second heading\n#Notaheading\n')
+    e = app.open_document(path); app.app.processEvents()
+    lexer = e.lexer()
+    check('a heading with a space after # is a heading', style_at(e, 0, 3), 'h1.text')
+    check('a tag in the middle of a line', style_at(e, 2, e.text(2).index('#midtag') + 2), 'tag')
+    check('a tag at the start of a line is a tag, not a heading', styles(e, 3)[:2], [(0, 'tag'), (8, 'default')])
+    check('also with accented letters', style_at(e, 4, 3), 'tag')
+    check('and it is clickable', clickable(e, 3, lexer.indicator_id_tag)[:9], 'XXXXXXXX.')
+    check('level 2 heading still works', style_at(e, 5, 4), 'h2.text')
+    check('only real headings count as headings', [h[0].strip() for h in lexer.get_headings()],
+          ['# Real heading', '## Second heading'])
+
+
 def test_critic_markup(app):                   # item 20
     path = note('201801010203 Critic.md', '# Critic\n\nKeep {++added++} and {--gone--} and {~~old~>new~~}, {==marked==}{>>why<<} end.\n\nNumbered:\n\n1. item [@smith2020]\n')
     e = app.open_document(path); app.app.processEvents()
@@ -141,4 +155,4 @@ def test_critic_markup(app):                   # item 20
 
 import zkutils, sublimeless_zk
 sublimeless_zk.open_hyperlink = lambda url: None      # never start a browser in tests
-run_gui_tests([test_ordered_lists, test_non_ascii_offsets, test_citations, test_web_links, test_speed, test_critic_markup])
+run_gui_tests([test_ordered_lists, test_non_ascii_offsets, test_citations, test_web_links, test_speed, test_tag_at_line_start, test_critic_markup])
