@@ -70,8 +70,8 @@ class ZkMdLexer(QsciLexerCustom):
         # of the theme, e.g. 1 or -0.5, without editing the theme itself
         try:
             # on macOS the same point size comes out slightly smaller with the
-            # current Qt than it did in version 0.9: half a point makes up for it
-            default_adjust = 0.5 if sys.platform == 'darwin' else 0
+            # current Qt than it did in version 0.9: a quarter point makes up for it
+            default_adjust = 0.25 if sys.platform == 'darwin' else 0
             size_adjust = float(get_settings().get('editor_font_size_adjust', default_adjust))
         except (TypeError, ValueError):
             size_adjust = 0

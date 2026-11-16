@@ -941,7 +941,6 @@ class Sublimeless_Zk(QObject):
             corner = self.gui.geometry().topLeft()
             window.move(corner.x() + 60 + offset, corner.y() + 40 + offset)
             window.closed.connect(self.on_note_window_closed)
-            primary.modificationChanged.connect(lambda *args, w=window: w.update_title())
             self.note_windows.append(window)
         window.show()
         window.raise_()

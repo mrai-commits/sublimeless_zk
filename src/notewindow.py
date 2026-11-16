@@ -31,12 +31,19 @@ class NoteWindow(QMainWindow):
         self.setCentralWidget(view)
         self.addActions(list(actions))
         self.update_title()
+        # a bound method, not a lambda: Qt drops the connection by itself
+        # when this window is deleted
+        primary.modificationChanged.connect(self.update_title)
         self.resize(720, 760)
 
-    def update_title(self):
+    def update_title(self, *args):
         name = os.path.basename(self.primary.file_name or '')
         self.setWindowTitle(name + ('*' if self.primary.isModified() else ''))
 
     def closeEvent(self, event):
+        try:
+            self.primary.modificationChanged.disconnect(self.update_title)
+        except (TypeError, RuntimeError):
+            pass
         self.closed.emit(self)
         super().closeEvent(event)

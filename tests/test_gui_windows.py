@@ -95,6 +95,20 @@ def test_close_window_keeps_tab(app):
     check('the text is intact', 'XYZ first note' in primary.text())
 
 
+def test_editing_after_window_closed(app):
+    from harness import failures
+    primary = app.open_document(B)
+    window = app.open_note_window(primary); app.app.processEvents()
+    window.close(); app.app.processEvents()
+    from PyQt5.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete); app.app.processEvents()
+    before = len(failures)
+    primary.insert('typed after the window was closed '); app.app.processEvents()
+    app.save(); app.app.processEvents()
+    primary.insert('again '); app.app.processEvents()
+    check('editing and saving after closing the window raises no error', len(failures), before)
+
+
 def test_close_tab_closes_window(app):
     app.save_all()
     primary = app.open_document(C)
@@ -155,5 +169,5 @@ def test_windows_come_back(app):
 
 
 run_gui_tests([test_open_window, test_text_is_shared, test_save_from_window, test_commands_apply_to_window,
-               test_follow_link_from_window, test_close_window_keeps_tab, test_close_tab_closes_window,
+               test_follow_link_from_window, test_close_window_keeps_tab, test_editing_after_window_closed, test_close_tab_closes_window,
                test_rename_from_window, test_double_click_and_quit, test_windows_come_back])

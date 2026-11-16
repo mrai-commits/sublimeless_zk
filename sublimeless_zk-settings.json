@@ -163,7 +163,7 @@
 
     // Make all text in the editor larger or smaller than the theme says,
     // in points: 1 = one point larger, -0.5 = half a point smaller.
-    // If this line is missing, the value is 0.5 on macOS and 0 elsewhere.
+    // If this line is missing, the value is 0.25 on macOS and 0 elsewhere.
     "editor_font_size_adjust": 0,
 
     // Citation style for the automatic bibliography, "Insert Full Reference"
