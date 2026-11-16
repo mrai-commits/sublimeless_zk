@@ -38,11 +38,17 @@ def test_wildcards(app):                       # item 46
 
 
 def test_whole_word(app):                      # D5
-    check('a plain word also finds longer words', found(app, 'organi'), ['01', '02'])
-    check('=word finds the whole word only', found(app, '=organi'), [])
-    check('=word finds it as a word', found(app, '=apple'), ['01', '03'])
-    check('=word does not find it inside a longer word', found(app, '=app'), [])
-    check('it combines with not', found(app, 'apple, !!=pie'), ['03'])
+    note('201801010705 Cars.md', '# Cars\n\ncar and carrion\n')
+    note('201801010706 Scare.md', '# Scare\n\nscar and scaring\n')
+    note('201801010707 Oscars.md', '# Oscars\n\noscars only\n')
+    check('a plain word is found anywhere in a word', found(app, 'car'), ['05', '06', '07'])
+    check('=word: words beginning with it', found(app, '=car'), ['05'])
+    check('word=: words ending in it', found(app, 'car='), ['05', '06'])
+    check('=word=: the whole word only', found(app, '=car='), ['05'])
+    check('=word= does not find longer words', found(app, '=carrio='), [])
+    check('* stands for the rest of the word', found(app, 'organi*'), ['01', '02'])
+    check('= and * together', found(app, '=organi*ion='), ['01', '02'])
+    check('it combines with not', found(app, 'apple, !!=pie='), ['03'])
 
 
 def test_tag_search_without_hash(app):         # D4

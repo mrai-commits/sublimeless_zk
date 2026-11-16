@@ -1461,7 +1461,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * `#!` shows the number of notes beside each tag: `* #tag (12)`. View > Show all Tags by number of notes sorts by that number; `"tag_list_sort": "count"` makes this the default.
 * The periods of the [recently opened notes](#browsing-recently-opened-notes) are a setting, in hours: `"recent_notes_hours": [1, 6, 24, 168, 720]`.
 * [Find in files](#find-in-files) follows the same rules as the [tag search](#advanced-tag-search): a space means *or*, a comma means *and*. `apple pear, plum` finds notes containing apple or pear, and also plum. `!!plum` means *not*, `""apple pie""` is an exact phrase. `"search_comma_is_and": false` brings back the old rule that all words must be found.
-* Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking. `=apple` finds the whole word only, not apples or pineapple.
+* Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking. An `=` marks where a word must begin or end: `=car` finds car and carrion, `car=` finds car and scar, `=car=` finds only car. The find window shows these rules below the input line.
 * The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it. The `#` can be left out there: `index, quality` works like `#index, #quality`.
 * `#?` shows the number of notes beside each tag. If you type a tag that does not exist yet and press <kbd>enter</kbd>, it is inserted as a new tag.
 * Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
@@ -1489,7 +1489,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 #### CriticMarkup
 
 * With `"critic_markup": true`, [CriticMarkup](http://criticmarkup.com) is highlighted: `{++added++}`, `{--deleted--}`, `{~~old~>new~~}`, `{==marked==}`, and `{>>comment<<}`.
-* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>A</kbd> to mark it as added, <kbd>X</kbd> as deleted, <kbd>U</kbd> as substituted, <kbd>Y</kbd> to highlight it, <kbd>K</kbd> to add a comment after it. The same commands are in Edit > Format.
+* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>A</kbd> to mark it as added, <kbd>X</kbd> as deleted, <kbd>U</kbd> as substituted, <kbd>Y</kbd> to highlight it, <kbd>C</kbd> to add a comment after it. The same commands are in Edit > Format.
 * The colors work with all themes. To change them, add `"critic.addition"`, `"critic.deletion"`, `"critic.highlight"`, and `"critic.comment"` to [your theme](#customizing-themes), e.g. `"critic.addition": {"color": "#1a7f37", "background": "#dafbe1"}`.
 
 #### Export to Word and PDF

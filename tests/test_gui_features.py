@@ -294,7 +294,7 @@ def test_shortcut_cheatsheet(app):
     check('it lists menu commands with shortcuts', 'Format: Bold' in commands and 'Insert Bibliography' in commands)
     check('it lists what is typed or clicked', 'Insert a link to a note' in commands)
     check('it lists itself', 'Keyboard Shortcuts' in commands)
-    check('it explains the search rules', 'Notes with both tags' in commands and 'The whole word only (not apples, pineapple)' in commands)
+    check('it explains the search rules', 'Notes with both tags' in commands and 'The whole word only (car)' in commands)
     dialog.filter_edit.setText('tag')
     filtered = dialog.visible_commands()
     check('the filter narrows the list', 0 < len(filtered) < len(commands) and 'Format: Bold' not in filtered)
@@ -368,7 +368,11 @@ def test_critic_shortcuts(app):                # D11
     check('no selection: empty mark with the cursor inside', (e.text(), e.getCursorPosition()), ('a{++++}b\n', (0, 4)))
     e = fresh(app, 'x\n'); e.setSelection(0, 0, 0, 1); app.critic('highlight')
     check('highlight', e.text(), '{==x==}\n')
-    check('the marks have shortcuts', app.criticActions['add'].shortcut().toString(), 'Ctrl+Alt+A')
+    check('the marks have shortcuts', [app.criticActions[k].shortcut().toString() for k in ('add', 'delete', 'substitute', 'highlight', 'comment')],
+          ['Ctrl+Alt+A', 'Ctrl+Alt+X', 'Ctrl+Alt+U', 'Ctrl+Alt+Y', 'Ctrl+Alt+C'])
+    import inputpanel
+    panel = inputpanel.InputPanel(None, 'Find in files:', '', hint='space: or   comma: and')
+    check('the find-in-files window can show its syntax below the input', panel.hint_label is not None and panel.hint_label.text().startswith('space: or'))
 
 
 def test_red_notice(app):                      # C16

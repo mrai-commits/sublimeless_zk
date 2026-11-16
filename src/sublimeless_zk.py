@@ -159,13 +159,15 @@ class Sublimeless_Zk(QObject):
         self.newKeepTextAction.setShortcuts([QKeySequence('Ctrl+Alt+N'), QKeySequence(
             'Ctrl+Shift+Return' if sys.platform == 'darwin' else 'Alt+Shift+Return')])
 
-        # CriticMarkup
+        # CriticMarkup: the first letter where it is free. Not free are
+        # D (macOS: show/hide the Dock), H (macOS: hide other apps) and
+        # S (Save All in this app), hence X, Y and U
         self.criticActions = {}
         for kind, text, keys in (('add', 'CriticMarkup: Addition', 'Ctrl+Alt+A'),
                                  ('delete', 'CriticMarkup: Deletion', 'Ctrl+Alt+X'),
                                  ('substitute', 'CriticMarkup: Substitution', 'Ctrl+Alt+U'),
                                  ('highlight', 'CriticMarkup: Highlight', 'Ctrl+Alt+Y'),
-                                 ('comment', 'CriticMarkup: Comment', 'Ctrl+Alt+K')):
+                                 ('comment', 'CriticMarkup: Comment', 'Ctrl+Alt+C')):
             action = QAction(text, self)
             action.setShortcut(keys)
             self.criticActions[kind] = action
@@ -557,7 +559,7 @@ class Sublimeless_Zk(QObject):
             Qt.AltModifier | Qt.Key_N,
             Qt.AltModifier | Qt.Key_R,
             Qt.AltModifier | Qt.Key_A, Qt.AltModifier | Qt.Key_X, Qt.AltModifier | Qt.Key_U,
-            Qt.AltModifier | Qt.Key_Y, Qt.AltModifier | Qt.Key_K,
+            Qt.AltModifier | Qt.Key_Y, Qt.AltModifier | Qt.Key_C,
             Qt.ShiftModifier | Qt.Key_Slash, Qt.ShiftModifier | Qt.Key_Question,
             Qt.ShiftModifier | Qt.Key_O,
             Qt.ShiftModifier | Qt.Key_I,
@@ -2076,7 +2078,10 @@ class Sublimeless_Zk(QObject):
                 sel_end = editor.positionFromLineIndex(sel[2], sel[3])
                 textbytes = bytearray(editor.text(), "utf-8")
                 suggested_terms = textbytes[sel_start:sel_end].decode('utf-8')
-            search_terms = show_input_panel(None, 'Find in files:', suggested_terms)
+            search_terms = show_input_panel(None, 'Find in files:', suggested_terms, hint=(
+                'space: or   comma: and   !!word: not   ""exact phrase""\n'
+                'car* : car, cars, carrion (also plain: car)   =car : words starting with car   '
+                'car= : words ending in car   =car= : only car   organi?ation : one letter'))
         if not search_terms:
             return
         orig_search_terms = search_terms

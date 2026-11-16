@@ -78,16 +78,25 @@ def term_matcher(term):
     """
     Function telling whether a (lower-case) text contains the search term.
     * stands for any number of letters or digits, ? for exactly one.
+    An = marks where the word must begin or end:
+        car     car, cars, scare, carrion      (anywhere in a word)
+        =car    car, cars, carrion             (words beginning with car)
+        car=    car, scar                      (words ending in car)
+        =car=   car                            (the whole word)
     """
-    whole_word = term.startswith('=') and len(term) > 1
-    if whole_word:
+    begins = term.startswith('=') and len(term.strip('=')) > 0
+    ends = term.endswith('=') and len(term.strip('=')) > 0
+    if begins:
         term = term[1:]
-    if '*' not in term and '?' not in term and not whole_word:
+    if ends:
+        term = term[:-1]
+    if '*' not in term and '?' not in term and not begins and not ends:
         return lambda text: term in text
     pattern = re.escape(term).replace(r'\*', r'\w*').replace(r'\?', r'\w')
-    if whole_word:
-        # =illya finds "Illya" but not "Illyasin"
-        pattern = r'(?<!\w)' + pattern + r'(?!\w)'
+    if begins:
+        pattern = r'(?<!\w)' + pattern
+    if ends:
+        pattern = pattern + r'(?!\w)'
     regex = re.compile(pattern)
     return lambda text: regex.search(text) is not None
 
@@ -98,7 +107,8 @@ def compile_file_search(search_string, comma_is_and=True):
 
     comma_is_and (the default since 1.0), like the tag search:
         apple pear, plum      (apple or pear) and plum
-        =apple                the whole word apple, not apples or pineapple
+        =apple=               the whole word apple, not apples or pineapple
+        =apple  apple=        words beginning with / ending in apple
         ""apple pie"", !!plum   the phrase, and not plum
     otherwise (as before 1.0) all terms must match:
         apple pear            apple and pear

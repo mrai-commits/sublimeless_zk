@@ -4,18 +4,24 @@ from PyQt5.QtWidgets import *
 
 
 class InputPanel(QDialog):
-    def __init__(self, parent, label, defaulttext):
+    def __init__(self, parent, label, defaulttext, hint=None):
         super(InputPanel, self).__init__(parent=parent)
 
         self.setWindowFlags(Qt.FramelessWindowHint)
         self._text = ''
         self.setObjectName("self")
-        hlay = QHBoxLayout(self)
+        vlay = QVBoxLayout(self)
+        hlay = QHBoxLayout()
         hlay.addWidget(QLabel(label))
         self.line_edit = QLineEdit()
         self.line_edit.setText(defaulttext)
         hlay.addWidget(self.line_edit)
-        self.setLayout(hlay)
+        vlay.addLayout(hlay)
+        self.hint_label = None
+        if hint:
+            # a short reminder of the syntax, below the input line
+            self.hint_label = QLabel(hint)
+            vlay.addWidget(self.hint_label)
         self.setMinimumWidth(600)
         self.line_edit.returnPressed.connect(self._ok_clicked)
         self.line_edit.setFocus()
@@ -38,8 +44,8 @@ class InputPanel(QDialog):
         return self._text
 
 
-def show_input_panel(parent, label, defaulttext):
-    ip = InputPanel(parent, label, defaulttext)
+def show_input_panel(parent, label, defaulttext, hint=None):
+    ip = InputPanel(parent, label, defaulttext, hint)
     if parent:
         ip.move(parent.rect().center() - ip.rect().center())
     ret = ip.exec_()

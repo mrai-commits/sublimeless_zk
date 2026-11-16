@@ -49,9 +49,12 @@ FILE_SEARCH_SYNTAX = [
     ('Notes with both words', 'apple, pear'),
     ('Notes without a word', '!!plum'),
     ('An exact phrase', '""apple pie""'),
-    ('The whole word only (not apples, pineapple)', '=apple'),
-    ('Any letters / exactly one letter', 'sense*   organi?ation'),
-    ('Combined', 'apple pear, !!plum, =pie'),
+    ('Anywhere in a word (car, cars, scare, carrion)', 'car'),
+    ('Words beginning with it (car, cars, carrion)', '=car'),
+    ('Words ending in it (car, scar)', 'car='),
+    ('The whole word only (car)', '=car='),
+    ('Any letters in between / exactly one letter', 'organi*ion   organi?ation'),
+    ('Combined', 'apple pear, !!plum, =pie='),
 ]
 
 
