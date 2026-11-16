@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.Qt import QUrl, Qt, pyqtSignal
 from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, QProgressBar, QApplication, QComboBox, QFileDialog, QMessageBox, QDialog
-from PyQt5.QtWebEngineWidgets import QWebEngineView as QWebView
+from PyQt5.QtGui import QDesktopServices
 from libzk2setevi.convert import Zk2Setevi
 import traceback
 from subprocess import Popen, PIPE
@@ -189,20 +189,15 @@ class Semantic_ZK(QWidget):
         convert_bt = QPushButton('Convert!')
         left_vlay.addWidget(convert_bt)
 
-        # HTML view
-        if sys.platform != 'linux':
-            self.html_view = QWebView()
-            self.html_view.setHtml('<center><h2>Preview</h2></center>')
-        else:
-            open_html_button = QPushButton('Open in browser...')
-            open_html_button.clicked.connect(self.open_html_clicked)
+        # The result is shown in the web browser. Version 0.9 had a preview
+        # pane here; it needed Qt's web engine, which made up a large part of
+        # the app's size.
+        open_html_button = QPushButton('Open in browser...')
+        open_html_button.clicked.connect(self.open_html_clicked)
 
         # Add to splitter
         main_split.addWidget(left_widget)
-        if sys.platform != 'linux':
-            main_split.addWidget(self.html_view)
-        else:
-            left_vlay.addWidget(open_html_button)
+        left_vlay.addWidget(open_html_button)
 
         close_bt = QPushButton('Close')
         left_vlay.addWidget(close_bt)
@@ -325,10 +320,9 @@ class Semantic_ZK(QWidget):
                                   base_url=baseurl, timestamp_from=ts_from, timestamp_until=ts_to, white_tags=tags_white,
                                   black_tags=tags_black)
             converter.create_html()
-            url = 'file:///' + output_folder + '/index.html'
-            qurl = QUrl(url)
             if sys.platform != 'linux':
-                self.html_view.load(qurl)
+                # where the preview used to appear: open the result right away
+                self.open_html_clicked()
         except Exception as e:
             mb = QMessageBox()
             mb.setIcon(QMessageBox.Critical)
@@ -360,7 +354,7 @@ class Semantic_ZK(QWidget):
 
     def open_html_clicked(self):
         output_folder = self.ed_output_folder.text()
-        webbrowser.open(output_folder + '/index.html')
+        QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.join(output_folder, 'index.html')))
 
     def finish_callback(self):
         self.progressbar.setValue(100)
