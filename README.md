@@ -82,7 +82,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
     * [Windows](#windows)
     * [macOS](#macos)
     * [Linux](#linux)
-    * [Installing Pandoc](#installing-pandoc)
+    * [Pandoc](#pandoc)
 
 * [Usage](#usage)
     * [Shortcut cheatsheet](#shortcut-cheatsheet)
@@ -160,15 +160,13 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 
 There are no installers. Just download and enjoy.
 
-The [releases](https://github.com/mrai-commits/sublimeless_zk/releases) section of the GitHub repository provides binary [downloads](https://github.com/mrai-commits/sublimeless_zk/releases) for up-to-date versions of both Windows 10 (64bit), macOs, and Linux.
+The [releases](https://github.com/mrai-commits/sublimeless_zk/releases) section of the GitHub repository provides [downloads](https://github.com/mrai-commits/sublimeless_zk/releases) for macOS (Apple Silicon), Windows (64bit) and Linux. Fonts, pandoc and the spelling dictionaries come with the app: there is nothing else to install *(new in 1.0)*.
 
 ### Windows
 
-**Built and tested on Windows 10 (64bit) only:** [Rumors](https://github.com/renerocksai/sublimeless_zk/issues/40) have it that it works on Windows 8.1 but if you don't run Windows 10 64bit, don't expect it to run. Volunteers helping to build releases for other versions of Windows are welcome to contact me on GitHub.
-
-* Download the Windows ZIP (`sublimeless_zk-pre-x.y-win10.zip`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
-* Unzip `sublimeless_zk-pre-x.y-win10.zip`
-* In the resulting `sublimeless_zk-pre-x.y-win10` folder, `sublimeless_zk.exe` is the program you want to run.
+* Download `Sublimeless_ZK-Windows.zip` [from the releases page](https://github.com/mrai-commits/sublimeless_zk/releases) and unzip it.
+* In the resulting `sublimeless_zk` folder, `sublimeless_zk.exe` is the program you want to run.
+* Windows may warn that the app comes from an unknown publisher: click *More info*, then *Run anyway*.
 
 ![win_exe](imgs/windows_exe.png)
 
@@ -176,35 +174,30 @@ The [releases](https://github.com/mrai-commits/sublimeless_zk/releases) section 
 
 
 ### macOS
-* Download the macOS ZIP (`sublimeless_zk-pre-x.y-macOS.app.zip`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
-* Unzip `sublimeless_zk-pre-x.y-macOS.app.zip`
-* `sublimeless_zk-pre-x.y.app` is the program you want to run.
+* Download `Sublimeless_ZK-macOS-arm64.zip` [from the releases page](https://github.com/mrai-commits/sublimeless_zk/releases) and unzip it.
+* Move `Sublimeless_ZK.app` to your Applications folder, and open it.
+* The app is not signed, so macOS blocks it the first time ("Apple could not verify..."). Click *Done*, open System Settings > Privacy & Security, and click *Open Anyway* next to the message about Sublimeless_ZK. Confirm with your password. This is needed once per download.
 
 ### Linux
 
-* Download the Linux `.tar.gz` (`sublimeless_zk-pre-x.y-linux.tar.gz`) [from the GitHub release archive](https://github.com/mrai-commits/sublimeless_zk/releases)
-* Unpack `sublimeless_zk-pre-x.y-linux.tar.gz`
-* In the resulting `sublimeless_zk-pre-x.y-linux` folder, `sublimeless_zk` is the program you want to run.
+* Download `Sublimeless_ZK-Linux.tar.gz` [from the releases page](https://github.com/mrai-commits/sublimeless_zk/releases) and unpack it.
+* In the resulting `sublimeless_zk` folder, `sublimeless_zk` is the program you want to run.
 
-#### Alternative Linux Installation
+#### Running from source
 
-If the above method doesn't work, you can try running the sources directly
+If the above method doesn't work, you can run the sources directly:
 
-* Install python 3.6 (eg, from [Anaconda](https://continuum.py))
-* Install required packates: `pip3 install pyqt5 qscintilla jstyleson fuzzyfinder pymmd markdown pypandoc pygments bibtexparser`
-    * build the Multimarkdown shared library for pymmd (required for HTML export): `python3 -c "import pymmd; pymmd.build_mmd()"`
-    * for that to work you need a working C compiler and cmake:
-        * `sudo apt-get install cmake gcc g++ binutils`
-* Download or `git clone` the sources directly from [GitHub](https://github.com/mrai-commits/sublimeless_zk)
+* Install Python 3.13 or later.
+* Download or `git clone` the sources from [GitHub](https://github.com/mrai-commits/sublimeless_zk)
+* In the source folder, install the required packages: `pip3 install -r requirements.txt`
+    * optional, for the MultiMarkdown parser of the HTML export: `python3 -c "import pymmd; pymmd.build_mmd()"` (needs a C compiler and cmake: `sudo apt-get install cmake gcc g++ binutils`)
 * change into the `src` folder
 * run `python3 sublimeless_zk.py`
 
 
+### Pandoc
 
-### Installing Pandoc
-
-Whether you use [Pandoc](https://pandoc.org) or not for Markdown processing, the [AutoBib](#automatic-bibliographies) feature requires it. Luckily it is [easy to install](https://pandoc.org/installing.html).
-
+Pandoc is used for the [automatic bibliography](#automatic-bibliographies), for full references and for the [export to Word and PDF](#export-to-word-and-pdf). Since version 1.0 it comes with the app *(new in 1.0)*. If you prefer your own [pandoc](https://pandoc.org/installing.html), set its path in `"path_to_pandoc"` in the settings.
 
 ## Usage
 
@@ -951,7 +944,7 @@ The following animation shows this in action:
 #### Automatic Bibliographies
 It is common practice to keep local bibliographies in your notes. This makes each note self-contained and independent of `.bib` files. Manually maintaining a list of all your cited sources can be tedious and error-prone, especially in the case of long notes with many citations. Provided a `.bib` file is part of your note archive or you have [configured](#location-of-your-bib-file) one, then this app can take care of all your citations for you.
 
-**Note:** This will only work if you have `pandoc` and its companion `pandoc-citeproc` installed in a location that is referenced by your `PATH` environment variable! See the [how to install pandoc](https://pandoc.org/installing.html), it's a breeze.
+**Note:** This uses [pandoc](#pandoc), which comes with the app since version 1.0. Choose the citation style with the `"csl"` setting (see [New in version 1.0](#citations)).
 
 In any note with citations
 
@@ -1214,6 +1207,7 @@ You can export your note archive, or parts thereof, into a semantic text view, c
 * Optionally specify tags notes must not be tagged with
 * Choose one of the [available parsers](#about-the-available-parsers)
 * Click "Convert!"
+* When the export is done, the result opens in your web browser *(changed in 1.0)*. The button "Open in browser..." opens it again.
 
 ![html export](imgs/htmlexport.png)
 
@@ -1498,6 +1492,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * Nothing needs to be installed for this: pandoc comes with the app, and the PDF is produced by the app itself, without LaTeX.
 * If you use a [`.bib` file](#location-of-your-bib-file), citations like `[@smith2020]` are written out, e.g. as (Smith 2020), and the list of references is added at the end.
 * Images are found if their path is relative to the note. The PDF page size is A4; use `"pdf_page_size": "Letter"` for US Letter.
+* The [HTML export](#html-export) of the whole archive opens the result in your web browser; the preview pane of version 0.9 is gone, which made the app much smaller.
 * The PDF has a plain layout made for reading and sharing. For fine control over the layout, export to Word, or use an [external command](#external-commands).
 
 #### User interface
