@@ -288,14 +288,16 @@ def test_shortcut_cheatsheet(app):
     dialog = app.shortcuts_dialog()
     commands = dialog.visible_commands()
     groups = [dialog.tree.topLevelItem(i).text(0) for i in range(dialog.tree.topLevelItemCount())]
-    check('cheatsheet is grouped like the menus', groups[:5] + groups[-1:],
-          ['File', 'Edit', 'Search', 'View', 'Tools', 'Typing and mouse'])
+    check('cheatsheet is grouped like the menus', groups[:5], ['File', 'Edit', 'Search', 'View', 'Tools'])
+    check('with groups for typing and for the search rules', groups[-3:],
+          ['Typing and mouse', 'Searching for tags', 'Finding text in all notes'])
     check('it lists menu commands with shortcuts', 'Format: Bold' in commands and 'Insert Bibliography' in commands)
     check('it lists what is typed or clicked', 'Insert a link to a note' in commands)
     check('it lists itself', 'Keyboard Shortcuts' in commands)
+    check('it explains the search rules', 'Notes with both tags' in commands and 'The whole word only (not apples, pineapple)' in commands)
     dialog.filter_edit.setText('tag')
     filtered = dialog.visible_commands()
-    check('the filter narrows the list', 0 < len(filtered) < len(commands) and all('tag' in c.lower() for c in filtered))
+    check('the filter narrows the list', 0 < len(filtered) < len(commands) and 'Format: Bold' not in filtered)
     dialog.filter_edit.setText('bold')
     item = [c for c in dialog.visible_commands()]
     check('filter finds one command', item, ['Format: Bold'])
@@ -334,6 +336,50 @@ def test_font_size_adjust(app):
     check('default is the theme size', lexer.font(lexer.style2id['default']).pointSizeF(), base)
 
 
+def test_shortcut_reaches_action_not_editor(app):      # D9: Cmd+Shift+L deleted the line
+    e = fresh(app, 'line one\nline two\nline three\n')
+    app.gui.activateWindow(); e.setFocus(); app.app.processEvents()
+    asked = []
+    szk.show_fuzzy_panel = lambda *a, **k: (asked.append(a[1]) or (None, None))
+    e.setCursorPosition(1, 3)
+    QTest.keyClick(e, Qt.Key_L, Qt.ControlModifier | Qt.ShiftModifier); app.app.processEvents()
+    check('Cmd/Ctrl+Shift+L no longer deletes the line', e.text(), 'line one\nline two\nline three\n')
+    check('it opens the link selection', asked, ['Insert Link to Note'])
+    from PyQt5.Qsci import QsciScintilla
+    still_bound = [QKeySequence(c.key()).toString() for c in e.standardCommands().commands()
+                   if c.key() and any(QKeySequence(c.key()).matches(k) == QKeySequence.ExactMatch
+                                      for a in app.command_palette_actions.values() for k in a.shortcuts())]
+    # cut, copy, paste and undo do the same thing in both, that is fine
+    check('no editor command shares a key with an app command',
+          [k for k in still_bound if k not in ('Ctrl+X', 'Ctrl+C', 'Ctrl+V', 'Ctrl+Z')], [])
+
+
+def test_critic_shortcuts(app):                # D11
+    e = fresh(app, 'some old words here\n')
+    e.setSelection(0, 5, 0, 8); app.critic('delete')
+    check('deletion mark around the selection', e.text(), 'some {--old--} words here\n')
+    app.critic('delete')
+    check('again removes it', e.text(), 'some old words here\n')
+    e.setSelection(0, 5, 0, 8); app.critic('substitute')
+    check('substitution mark, cursor after the arrow', (e.text(), e.getCursorPosition()), ('some {~~old~>~~} words here\n', (0, 13)))
+    e = fresh(app, 'word\n'); e.setSelection(0, 0, 0, 4); app.critic('comment')
+    check('comment after the selection, cursor inside', (e.text(), e.getCursorPosition()), ('word{>><<}\n', (0, 7)))
+    e = fresh(app, 'ab\n'); e.setCursorPosition(0, 1); app.critic('add')
+    check('no selection: empty mark with the cursor inside', (e.text(), e.getCursorPosition()), ('a{++++}b\n', (0, 4)))
+    e = fresh(app, 'x\n'); e.setSelection(0, 0, 0, 1); app.critic('highlight')
+    check('highlight', e.text(), '{==x==}\n')
+    check('the marks have shortcuts', app.criticActions['add'].shortcut().toString(), 'Ctrl+Alt+A')
+
+
+def test_red_notice(app):                      # C16
+    app.notify('plain'); 
+    check('ordinary messages keep the normal look', 'color' in app.gui.statusBar().styleSheet(), False)
+    app.safe_filename_part('What?')
+    check('the file name notice is red and bold', '#d92d20' in app.gui.statusBar().styleSheet())
+    app.gui.statusBar().clearMessage(); app.app.processEvents()
+    check('the look goes back when the notice disappears', '#d92d20' in app.gui.statusBar().styleSheet(), False)
+
+
 def test_citation_needs_modifier(app):         # item 41
     e = app.open_document(N2); app.app.processEvents()
     clicked = []
@@ -351,4 +397,5 @@ run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, 
                test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,
-               test_click_link_close_parent, test_bundled_fonts, test_font_size_adjust, test_shortcut_cheatsheet, test_citation_needs_modifier])
+               test_click_link_close_parent, test_bundled_fonts, test_font_size_adjust, test_shortcut_cheatsheet,
+               test_shortcut_reaches_action_not_editor, test_critic_shortcuts, test_red_notice, test_citation_needs_modifier])

@@ -248,7 +248,7 @@ This app comes with sane defaults. You can start using it right away. Once you h
 * [Bold](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>B</kbd>, [Italic](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>I</kbd>, [Inline code](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>C</kbd> *(new in 1.0)*
 * [Dash list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>L</kbd>, [Numbered list](#formatting-shortcuts) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>L</kbd> *(new in 1.0)*
 * [Insert bibliography](#automatic-bibliographies) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>B</kbd> *(changed in 1.0)*
-* [New note from text, keeping the text](#new-notes-and-links) Select text, then <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd> *(new in 1.0)*
+* [New note from text, keeping the text](#new-notes-and-links) Select text, then <kbd>cmd</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> (Windows, Linux: <kbd>alt</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd>), or <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd> *(new in 1.0)*
 * [Insert link, title the other way round](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd> *(new in 1.0)*
 * [Open link and close the current note](#new-notes-and-links) <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + click, or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> *(new in 1.0)*
 * [Insert a full reference](#citations) <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>R</kbd> *(new in 1.0)*
@@ -1441,10 +1441,10 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 #### New notes and links
 
-* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd>: the new note is created as with <kbd>shift</kbd> + <kbd>enter</kbd>, but the selected text stays and the link is put after it.
+* Select text and press <kbd>cmd</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd> (Windows, Linux: <kbd>alt</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd>; everywhere also <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>N</kbd>): the new note is created as with <kbd>shift</kbd> + <kbd>enter</kbd>, but the selected text stays and the link is put after it.
 * <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd> inserts a link the opposite way to [this setting](#insert-links-with-or-without-titles): with the title if you normally insert links without, and vice versa.
 * <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + click on a link opens the note and closes the one you came from, like following a link in a web browser. With the keyboard: <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd>.
-* Characters that are not allowed in file names, like `?`, are replaced by `-` in the file name of a new or renamed note. A message in the status bar tells you; the title inside the note is not changed.
+* Characters that are not allowed in file names, like `?`, are replaced by `-` in the file name of a new or renamed note. A red message in the status bar tells you; the title inside the note is not changed.
 
 #### Citations
 
@@ -1461,8 +1461,9 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * `#!` shows the number of notes beside each tag: `* #tag (12)`. View > Show all Tags by number of notes sorts by that number; `"tag_list_sort": "count"` makes this the default.
 * The periods of the [recently opened notes](#browsing-recently-opened-notes) are a setting, in hours: `"recent_notes_hours": [1, 6, 24, 168, 720]`.
 * [Find in files](#find-in-files) follows the same rules as the [tag search](#advanced-tag-search): a space means *or*, a comma means *and*. `apple pear, plum` finds notes containing apple or pear, and also plum. `!!plum` means *not*, `""apple pie""` is an exact phrase. `"search_comma_is_and": false` brings back the old rule that all words must be found.
-* Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking.
-* The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it.
+* Find in files understands wildcards: `organi?ation` finds organisation and organization, `sense*` finds sensemaking. `=apple` finds the whole word only, not apples or pineapple.
+* The tag search (<kbd>ctrl/cmd</kbd> + <kbd>T</kbd>) shows your tags with their number of notes below the input line. The list narrows down as you type; <kbd>down</kbd>/<kbd>up</kbd> choose a tag and <kbd>tab</kbd> inserts it. The `#` can be left out there: `index, quality` works like `#index, #quality`.
+* `#?` shows the number of notes beside each tag. If you type a tag that does not exist yet and press <kbd>enter</kbd>, it is inserted as a new tag.
 * Search results are sorted by note ID or by title: `"sort_notelists_by": "title"`.
 * The entries of the [table of contents](#automatic-table-of-contents) are clickable: a click jumps to the section.
 * In the find/replace window, <kbd>tab</kbd> moves from the find to the replace field. Replace all is one undo step and shows the number of replacements.
@@ -1488,6 +1489,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 #### CriticMarkup
 
 * With `"critic_markup": true`, [CriticMarkup](http://criticmarkup.com) is highlighted: `{++added++}`, `{--deleted--}`, `{~~old~>new~~}`, `{==marked==}`, and `{>>comment<<}`.
+* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>A</kbd> to mark it as added, <kbd>X</kbd> as deleted, <kbd>U</kbd> as substituted, <kbd>Y</kbd> to highlight it, <kbd>K</kbd> to add a comment after it. The same commands are in Edit > Format.
 * The colors work with all themes. To change them, add `"critic.addition"`, `"critic.deletion"`, `"critic.highlight"`, and `"critic.comment"` to [your theme](#customizing-themes), e.g. `"critic.addition": {"color": "#1a7f37", "background": "#dafbe1"}`.
 
 #### Export to Word and PDF
@@ -1500,7 +1502,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 #### User interface
 
-* <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> shows all keyboard shortcuts in one window, grouped like the menus. Type to filter, e.g. `tag`; <kbd>esc</kbd> closes it. The [command palette](#command-palette) shows the shortcut beside each command.
+* <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> shows all keyboard shortcuts in one window, grouped like the menus. Type to filter, e.g. `tag`; <kbd>esc</kbd> closes it. It also lists the rules for searching tags and for finding text in all notes. The [command palette](#command-palette) shows the shortcut beside each command.
 * The status bar shows the number of words in the selection: `Words: 12 of 950`.
 * The sizes of the panels, and the size and position of the window, are remembered.
 * With the pointer on the tab bar, a two-finger swipe to the left or right on the trackpad, or the mouse wheel, moves through the tabs.

@@ -181,7 +181,11 @@ class ZkMdLexer(QsciLexerCustom):
         # Now apply the indicator-style on the chosen text
         editor.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, b_start, b_length)
 
-    critic_re = re.compile(r'\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}|\{==.*?==\}|\{>>.*?<<\}', flags=re.DOTALL)
+    # the text of a mark cannot contain the start of another mark: an
+    # unfinished {-- must not run on to the end of the next finished one
+    _critic_text = r'(?:(?!\{\+\+|\{--|\{~~|\{==|\{>>).)*?'
+    critic_re = re.compile(r'\{\+\+' + _critic_text + r'\+\+\}|\{--' + _critic_text + r'--\}|\{~~' + _critic_text
+                           + r'~~\}|\{==' + _critic_text + r'==\}|\{>>' + _critic_text + r'<<\}', flags=re.DOTALL)
     critic_styles = {'++': 'critic.addition', '--': 'critic.deletion', '==': 'critic.highlight', '>>': 'critic.comment'}
 
     non_ascii_re = re.compile(r'[^\x00-\x7f]')

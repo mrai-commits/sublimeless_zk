@@ -113,6 +113,18 @@ def test_suggestions_are_ready_ahead(app):
     check('with the correction', menu.actions()[0].text(), 'sentence')
 
 
+def test_last_word_is_marked_after_a_pause(app):   # D13: "Je suis dans la masson" stayed unmarked
+    e = open_checked(app, note('201801010903 Pause.md', 'Je suis dans la masson'))
+    app.gui.activateWindow(); e.setFocus(); app.app.processEvents()
+    e.setCursorPosition(0, 22)                   # right after the last word, as after typing it
+    app.spell.underline(e); app.spell.finish_now()
+    if e.hasFocus():
+        check('while typing, the word at the cursor is not marked yet', underlined(e), [])
+    app.spell.underline_after_pause() if app.spell.paused_editors else app.spell.underline(e, spare_word_at_cursor=False)
+    check('after a pause it is', underlined(e), ['masson'])
+    check('the French word is among the suggestions', 'maison' in app.spell.checker.suggest('masson'))
+
+
 def test_personal_dictionary(app):
     e = open_checked(app)
     menu, added = menu_for(app, e, 'mistaek')
@@ -150,4 +162,5 @@ def test_long_note_stays_responsive(app):
 
 
 run_gui_tests([test_dictionaries_load, test_underlines, test_underline_follows_edits, test_suggestions_menu,
-               test_suggestions_are_ready_ahead, test_personal_dictionary, test_switch_off, test_long_note_stays_responsive])
+               test_suggestions_are_ready_ahead, test_last_word_is_marked_after_a_pause,
+               test_personal_dictionary, test_switch_off, test_long_note_stays_responsive])

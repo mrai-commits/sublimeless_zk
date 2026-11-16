@@ -9,7 +9,7 @@ def fold(text):
     return ''.join(c for c in unicodedata.normalize('NFKD', text.lower()) if not unicodedata.combining(c))
 
 
-def find_items(search_string, items, max_items, folded=None):
+def find_items(search_string, items, max_items, folded=None, loose=True):
     """
     Entries matching what the user typed, best first:
     1. entries that contain every typed word (in any order, ignoring case
@@ -36,7 +36,7 @@ def find_items(search_string, items, max_items, folded=None):
             exact.append(items[index])
             if len(exact) >= max_items:
                 break
-    if exact:
+    if exact or not loose:
         return exact
     # loose match: the typed letters in this order, with anything in between.
     # The tightest matches come first.
@@ -54,6 +54,9 @@ def find_items(search_string, items, max_items, folded=None):
             loose.append((pos - start, start, index))
     loose.sort()
     return [items[index] for _, _, index in loose[:max_items]]
+
+
+NEW_ENTRY = '\x00new'      # value returned for a typed entry that is not in the list
 
 
 class PanelInputLine(QLineEdit):
@@ -86,6 +89,7 @@ class FuzzySearchPanel(QWidget):
             self.item_dict = {}
 
         # prepared once, so that each keystroke only does a plain text search
+        self.allow_new = False     # Enter with no match returns what was typed
         self.all_items = list(self.item_dict.keys())
         self.folded_items = [fold(item) for item in self.all_items]
         self.fuzzy_items = self.all_items[:max_items]
@@ -150,7 +154,8 @@ class FuzzySearchPanel(QWidget):
     def text_changed(self):
         search_string = self.input_line.text()
         if search_string:
-            self.fuzzy_items = find_items(search_string, self.all_items, self.max_items, self.folded_items)
+            self.fuzzy_items = find_items(search_string, self.all_items, self.max_items, self.folded_items,
+                                          loose=not self.allow_new)
         else:
             self.fuzzy_items = list(self.item_dict.keys())[:self.max_items]
         self.update_listbox()
@@ -177,6 +182,9 @@ class FuzzySearchPanel(QWidget):
             key = self.fuzzy_items[row]
             value = self.item_dict[key]
             self.item_selected.emit(key, value)
+        elif self.allow_new and self.input_line.text().strip():
+            # nothing matches: hand back what was typed, as a new entry
+            self.item_selected.emit(self.input_line.text().strip(), NEW_ENTRY)
 
 
     def item_doubleclicked(self):
@@ -222,11 +230,12 @@ class FuzzySearchDialog(QDialog):
         self.done(0)
 
 
-def show_fuzzy_panel(parent, title, item_dict, max_items=50, longlines=False, manylines=False):
+def show_fuzzy_panel(parent, title, item_dict, max_items=50, longlines=False, manylines=False, allow_new=False):
     """
     item_dict: show: return
     """
     dlg = FuzzySearchDialog(parent, title, item_dict, max_items)
+    dlg.panel.allow_new = allow_new
     if parent:
         pass
         #dlg.move(parent.rect().center() - dlg.rect().center())

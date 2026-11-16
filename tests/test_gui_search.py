@@ -37,6 +37,57 @@ def test_wildcards(app):                       # item 46
     check('* does not run over words', found(app, 'apple*pear'), [])
 
 
+def test_whole_word(app):                      # D5
+    check('a plain word also finds longer words', found(app, 'organi'), ['01', '02'])
+    check('=word finds the whole word only', found(app, '=organi'), [])
+    check('=word finds it as a word', found(app, '=apple'), ['01', '03'])
+    check('=word does not find it inside a longer word', found(app, '=app'), [])
+    check('it combines with not', found(app, 'apple, !!=pie'), ['03'])
+
+
+def test_tag_search_without_hash(app):         # D4
+    import tagsearch
+    norm = tagsearch.TagSearch.normalize
+    check('# is added', norm('fruit,red'), '#fruit, #red')
+    check('spaces after commas do not matter', norm('fruit, red'), '#fruit, #red')
+    check('mixed forms', norm('#fruit, red'), '#fruit, #red')
+    check('or, not and prefix keep working', norm('red green, !animal, fru*'), '#red #green, !#animal, #fru*')
+    check('stray commas are ignored', norm('#fruit, , red,'), '#fruit, #red')
+    def ids(spec):
+        return sorted(i[-2:] for i in tagsearch.TagSearch.advanced_tag_search(norm(spec), app.project))
+    check('both tags: only notes that have both', ids('fruit, red'), ['01'])
+    check('same with # and in the other order', ids('#red, #fruit'), ['01'])
+    check('either tag', ids('red green'), ['01', '02'])
+    import sublimeless_zk as szk
+    szk.show_tag_search_panel = lambda *a, **k: 'fruit,green'
+    app.advanced_tag_search()
+    with open(app.project.get_search_results_filn(), encoding='utf-8') as f:
+        check('the tag window accepts tags without #', f.read().split('\n')[0], '# 1 Notes matching search #fruit, #green')
+
+
+def test_insert_tag_counts_and_new(app):       # D3
+    e = app.open_document(D)
+    seen = {}
+    def panel(parent, title, choices, **k):
+        seen.update(choices); seen['allow_new'] = k.get('allow_new')
+        return ('#fruit (3)', '#fruit')
+    szk.show_fuzzy_panel = panel
+    e.setText('x \n'); e.setCursorPosition(0, 2); app.insert_tag()
+    check('the tag list shows the number of notes', '#fruit (3)' in seen and seen['#fruit (3)'] == '#fruit')
+    check('the chosen tag is inserted without the count', e.text(), 'x #fruit\n')
+    szk.show_fuzzy_panel = lambda *a, **k: ('brandnew', fuzzypanel.NEW_ENTRY)
+    e.setText('x \n'); e.setCursorPosition(0, 2); app.insert_tag()
+    check('Enter on a name that matches no tag inserts it as a new tag', e.text(), 'x #brandnew\n')
+    panel_widget = fuzzypanel.FuzzySearchPanel(item_dict={'#fruit (3)': '#fruit', '#red (1)': '#red'})
+    panel_widget.allow_new = True
+    got = []
+    panel_widget.item_selected.connect(lambda key, value: got.append((key, value)))
+    panel_widget.input_line.setText('fr'); panel_widget.text_changed(); panel_widget.return_pressed()
+    panel_widget.input_line.setText('zebra'); panel_widget.text_changed(); panel_widget.return_pressed()
+    check('the list returns a match, or the typed text when nothing matches',
+          got, [('#fruit (3)', '#fruit'), ('zebra', fuzzypanel.NEW_ENTRY)])
+
+
 def test_tag_search_panel(app):                # item 38
     panel = inputpanel.TagSearchPanel(None, 'tags', {'#fruit': 3, '#red': 1, '#green': 1, '#animal': 1})
     check('all tags are listed with counts', [panel.list_box.item(i).text() for i in range(panel.list_box.count())],
@@ -116,5 +167,6 @@ def test_delete_note_updates_open_list(app):
     check('and is gone from disk', os.path.exists(victim), False)
 
 
-run_gui_tests([test_file_search_syntax, test_wildcards, test_tag_search_panel, test_sort_setting,
+run_gui_tests([test_file_search_syntax, test_wildcards, test_whole_word, test_tag_search_without_hash,
+               test_insert_tag_counts_and_new, test_tag_search_panel, test_sort_setting,
                test_selector_finds_by_words, test_insert_full_reference, test_delete_note_updates_open_list])

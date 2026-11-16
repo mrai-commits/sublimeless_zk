@@ -77,6 +77,15 @@ def run_gui_tests(tests, timeout_s=120):
         traceback.print_exception(t, v, tb)
     sys.excepthook = hook
 
+    # The app installs its own handler for unexpected errors when it starts,
+    # which keeps it running. In tests every such error must count as a failure.
+    handle = app.on_unexpected_error
+    def counting_handler(t, v, tb):
+        failures.append('unexpected error ' + t.__name__)
+        print('FAIL unexpected error in the app:', t.__name__, v)
+        handle(t, v, tb)
+    app.on_unexpected_error = counting_handler
+
     def run():
         app.open_folder(ZK)
         app.app.processEvents()

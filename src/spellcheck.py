@@ -203,10 +203,10 @@ class SpellChecker:
             try_dictionary(self.dictionaries[lang], False, deadline)
         for lang in slow:
             try_dictionary(self.dictionaries[lang], True, deadline)
-        if not found:
-            # nothing yet: give the slow dictionaries a short full try
-            for lang in slow:
-                try_dictionary(self.dictionaries[lang], False, min(deadline, time.time() + 0.4))
+        # then a short full try in the slow dictionaries: finds e.g. "maison"
+        # for "masson", which the quick ones answer with "mason" only
+        for lang in slow:
+            try_dictionary(self.dictionaries[lang], False, min(deadline, time.time() + (0.3 if found else 0.45)))
         return [found[position] for position in sorted(found)][:limit]
 
     def measure_lookup_cost(self):

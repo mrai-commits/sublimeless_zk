@@ -95,7 +95,7 @@ def test_tab_moves_to_replace_field(app):      # item 40
 def test_unexpected_error_does_not_close_the_app(app):
     import sys
     from PyQt5.QtCore import QTimer
-    hook = app.on_unexpected_error            # the harness replaced sys.excepthook with its own
+    hook = lambda *exc: type(app).on_unexpected_error(app, *exc)   # the app's own handler, not the counting one of the harness
     try:
         raise RuntimeError('deliberate test error')
     except RuntimeError:

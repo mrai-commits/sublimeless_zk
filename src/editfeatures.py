@@ -73,6 +73,53 @@ def toggle_wrap(editor, marker):
         editor.endUndoAction()
 
 
+def critic_markup(editor, kind):
+    """
+    Put CriticMarkup around the selection:
+        add         {++text++}          delete      {--text--}
+        highlight   {==text==}          comment     text{>> <<}  (cursor inside)
+        substitute  {~~text~> ~~}       (cursor after the arrow)
+    Without a selection the empty mark is inserted with the cursor inside.
+    Doing add, delete or highlight on text that already has that mark removes it.
+    """
+    pairs = {'add': ('{++', '++}'), 'delete': ('{--', '--}'), 'highlight': ('{==', '==}')}
+    selected = editor.selectedText() if editor.hasSelectedText() else ''
+    if editor.hasSelectedText():
+        line1, index1, line2, index2 = editor.getSelection()
+    else:
+        line1, index1 = editor.getCursorPosition()
+        line2, index2 = line1, index1
+    single_line = line1 == line2 and '\n' not in selected
+
+    editor.beginUndoAction()
+    try:
+        if kind in pairs:
+            opening, closing = pairs[kind]
+            if selected.startswith(opening) and selected.endswith(closing) and len(selected) >= 6:
+                new_text = selected[3:-3]                  # remove the mark
+                editor.replaceSelectedText(new_text)
+                if single_line:
+                    editor.setSelection(line1, index1, line1, index1 + len(new_text))
+                return
+            editor.replaceSelectedText(opening + selected + closing) if selected else editor.insert(opening + closing)
+            if not selected:
+                editor.setCursorPosition(line1, index1 + 3)
+            elif single_line:
+                editor.setSelection(line1, index1, line1, index1 + len(selected) + 6)
+        elif kind == 'substitute':
+            text = '{~~' + selected + '~>~~}'
+            editor.replaceSelectedText(text) if selected else editor.insert(text)
+            if single_line:
+                # ready to type the new text
+                editor.setCursorPosition(line1, index1 + 3 + len(selected) + 2)
+        elif kind == 'comment':
+            editor.setCursorPosition(line2, index2)       # after the selection; the text stays
+            editor.insert('{>><<}')
+            editor.setCursorPosition(line2, index2 + 3)
+    finally:
+        editor.endUndoAction()
+
+
 def toggle_list(editor, ordered=False):
     """
     Turn the current line or all selected lines into list items ("- " or

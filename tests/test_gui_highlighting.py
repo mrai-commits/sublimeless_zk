@@ -151,6 +151,11 @@ def test_critic_markup(app):                   # item 20
     check('text around stays plain', style_at(e, l, text.index(' end.') + 1), 'default')
     l2 = line_of(e, '1. item')
     check('other highlighting still works beside it', style_at(e, l2, e.text(l2).index('@smith')), 'citekey')
+    e.setText('# Critic\n\nNow {--unfinished {++new++} and {--gone--} end.\n'); e.lexer().styleText(0, 10); app.app.processEvents()
+    text = e.text(2)
+    check('an unfinished mark does not colour what follows', style_at(e, 2, text.index('unfinished')), 'default')
+    check('the finished marks after it keep their own colours',
+          (style_at(e, 2, text.index('new')), style_at(e, 2, text.index('gone'))), ('critic.addition', 'critic.deletion'))
 
 
 import zkutils, sublimeless_zk

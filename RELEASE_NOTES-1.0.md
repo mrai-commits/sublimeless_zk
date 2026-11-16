@@ -23,6 +23,10 @@ The first release since 0.9. It brings the app to current versions of Python and
 * A tag at the start of a line (`#idea`) is a tag and no longer shown as a heading. As in standard Markdown, a heading needs a space after the `#`.
 * Typing in long notes is fast again. A note of 9,400 words needed 580 ms per keystroke; now about 40 ms.
 
+**Shortcuts**
+
+* Shortcuts with <kbd>shift</kbd> or <kbd>alt</kbd> that the editor uses for something else now reach the app's command. Before, the editor kept them: <kbd>ctrl/cmd</kbd> + <kbd>shift</kbd> + <kbd>L</kbd>, for example, deleted the line.
+
 **Find and replace**
 
 * Replace changes the highlighted match, not the one after it.

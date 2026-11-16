@@ -34,6 +34,27 @@ TYPING_AND_MOUSE = [
 ]
 
 
+TAG_SEARCH_SYNTAX = [
+    ('Notes with either tag', 'index quality'),
+    ('Notes with both tags', 'index, quality'),
+    ('Notes without a tag', '!draft'),
+    ('Tags starting with ...', 'qual*'),
+    ('Combined: (index or quality) and not draft', 'index quality, !draft'),
+    ('The # is optional in the tag search window', '#index, quality'),
+    ('Choose a tag from the list below the input', 'Down / Up, then Tab'),
+]
+
+FILE_SEARCH_SYNTAX = [
+    ('Notes with either word', 'apple pear'),
+    ('Notes with both words', 'apple, pear'),
+    ('Notes without a word', '!!plum'),
+    ('An exact phrase', '""apple pie""'),
+    ('The whole word only (not apples, pineapple)', '=apple'),
+    ('Any letters / exactly one letter', 'sense*   organi?ation'),
+    ('Combined', 'apple pear, !!plum, =pie'),
+]
+
+
 def shortcut_text(action):
     """The shortcuts of a menu command as shown to the user ('' if none)."""
     keys = [k.toString(QKeySequence.NativeText) for k in action.shortcuts() if not k.isEmpty()]

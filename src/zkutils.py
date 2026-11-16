@@ -79,9 +79,15 @@ def term_matcher(term):
     Function telling whether a (lower-case) text contains the search term.
     * stands for any number of letters or digits, ? for exactly one.
     """
-    if '*' not in term and '?' not in term:
+    whole_word = term.startswith('=') and len(term) > 1
+    if whole_word:
+        term = term[1:]
+    if '*' not in term and '?' not in term and not whole_word:
         return lambda text: term in text
     pattern = re.escape(term).replace(r'\*', r'\w*').replace(r'\?', r'\w')
+    if whole_word:
+        # =illya finds "Illya" but not "Illyasin"
+        pattern = r'(?<!\w)' + pattern + r'(?!\w)'
     regex = re.compile(pattern)
     return lambda text: regex.search(text) is not None
 
@@ -92,6 +98,7 @@ def compile_file_search(search_string, comma_is_and=True):
 
     comma_is_and (the default since 1.0), like the tag search:
         apple pear, plum      (apple or pear) and plum
+        =apple                the whole word apple, not apples or pineapple
         ""apple pie"", !!plum   the phrase, and not plum
     otherwise (as before 1.0) all terms must match:
         apple pear            apple and pear

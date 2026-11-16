@@ -14,6 +14,28 @@ class TagSearch:
     """
 
     @staticmethod
+    def normalize(search_spec):
+        """
+        Make what the user typed into a valid search-spec: the # may be left
+        out (index, quality  ->  #index, #quality), and stray commas or
+        spaces do no harm. ! and a trailing * keep their meaning.
+        """
+        terms = []
+        for term in search_spec.split(','):
+            specs = []
+            for tspec in term.split():
+                negated = tspec.startswith('!')
+                name = tspec.lstrip('!').strip()
+                if not name.strip('#*'):
+                    continue
+                if not name.startswith('#'):
+                    name = '#' + name
+                specs.append(('!' if negated else '') + name)
+            if specs:
+                terms.append(' '.join(specs))
+        return ', '.join(terms)
+
+    @staticmethod
     def advanced_tag_search(search_spec, project):
         """
         Return ids of all notes matching the search_spec.

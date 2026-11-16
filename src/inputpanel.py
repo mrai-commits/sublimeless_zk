@@ -72,7 +72,7 @@ class TagSearchPanel(QDialog):
         self.list_box.setFocusPolicy(Qt.NoFocus)
         vlay.addWidget(self.list_box)
         hint = QLabel('Down/Up: choose a tag   Tab: insert it   Enter: search   '
-                      'space: or   comma: and   !#tag: not   #tag*: starts with')
+                      'space: or   comma: and   !tag: not   tag*: starts with   (# is optional)')
         vlay.addWidget(hint)
         self.setMinimumWidth(600)
         self.setMinimumHeight(360)

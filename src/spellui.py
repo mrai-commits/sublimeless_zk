@@ -9,6 +9,7 @@ import weakref
 from PyQt5.QtCore import QObject, QTimer, Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QApplication
+from PyQt5 import sip
 from PyQt5.Qsci import QsciScintilla
 import spellcheck
 
@@ -30,6 +31,13 @@ class SpellUnderliner(QObject):
         self.typing_timer.setSingleShot(True)
         self.typing_timer.setInterval(250)
         self.typing_timer.timeout.connect(self.underline_waiting)
+        # after a longer pause the word at the cursor is checked too, so the
+        # last word of a sentence does not stay unmarked
+        self.pause_timer = QTimer(self)
+        self.pause_timer.setSingleShot(True)
+        self.pause_timer.setInterval(1500)
+        self.pause_timer.timeout.connect(self.underline_after_pause)
+        self.paused_editors = weakref.WeakSet()
         self.lookup_timer = QTimer(self)
         self.lookup_timer.setInterval(0)
         self.lookup_timer.timeout.connect(self.look_up_some)
@@ -61,9 +69,16 @@ class SpellUnderliner(QObject):
 
     def request(self, editor):
         """Underline soon. Called on every change; the work is done once typing pauses."""
-        if self.enabled and self.checker.ready:
+        if self.enabled and self.checker.ready and not sip.isdeleted(editor):
             self.waiting.add(editor)
             self.typing_timer.start()
+            self.paused_editors.add(editor)
+            self.pause_timer.start()
+
+    def underline_after_pause(self):
+        for editor in list(self.paused_editors):
+            self.underline(editor, spare_word_at_cursor=False)
+        self.paused_editors.clear()
 
     def underline_waiting(self):
         for editor in list(self.waiting):
@@ -72,12 +87,18 @@ class SpellUnderliner(QObject):
 
     @staticmethod
     def clear(editor):
+        if sip.isdeleted(editor):
+            return
         editor.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, SPELL_INDICATOR)
         editor.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, 0, editor.length())
 
-    def underline(self, editor):
+    def underline(self, editor, spare_word_at_cursor=True):
         """Mark the misspelled words of the editor's text; queue the words not seen before."""
         if not (self.enabled and self.checker.ready):
+            return
+        if sip.isdeleted(editor):
+            # the view of a note window that was closed
+            self.editors.discard(editor)
             return
         text = editor.text()
         # Scintilla counts in UTF-8 bytes
@@ -92,7 +113,7 @@ class SpellUnderliner(QObject):
 
         # the word being typed is not marked until the cursor leaves it
         cursor = None
-        if editor.hasFocus() and not editor.hasSelectedText():
+        if spare_word_at_cursor and editor.hasFocus() and not editor.hasSelectedText():
             line, index = editor.getCursorPosition()
             line_start = sum(len(l) for l in text.split('\n')[:line]) + line if line else 0
             cursor = line_start + index

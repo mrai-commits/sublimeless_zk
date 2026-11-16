@@ -25,6 +25,7 @@ from appstate import AppState
 from zkscintilla import ZettelkastenScintilla
 from inputpanel import show_input_panel, show_tag_search_panel
 from fuzzypanel import show_fuzzy_panel
+from fuzzypanel import NEW_ENTRY as fuzzypanel_new_entry
 from autobib import Autobib
 from textproduction import TextProduction
 from tagsearch import TagSearch
@@ -153,7 +154,22 @@ class Sublimeless_Zk(QObject):
         self.formatNumberListAction.setShortcut('Ctrl+Alt+L')
 
         self.newKeepTextAction = QAction('New Zettel Note, keep selected text', self)
-        self.newKeepTextAction.setShortcut('Ctrl+Alt+N')
+        # Shift+Enter makes a new note from the selection; with Cmd (macOS) or
+        # Alt (elsewhere) added, the selected text is kept
+        self.newKeepTextAction.setShortcuts([QKeySequence('Ctrl+Alt+N'), QKeySequence(
+            'Ctrl+Shift+Return' if sys.platform == 'darwin' else 'Alt+Shift+Return')])
+
+        # CriticMarkup
+        self.criticActions = {}
+        for kind, text, keys in (('add', 'CriticMarkup: Addition', 'Ctrl+Alt+A'),
+                                 ('delete', 'CriticMarkup: Deletion', 'Ctrl+Alt+X'),
+                                 ('substitute', 'CriticMarkup: Substitution', 'Ctrl+Alt+U'),
+                                 ('highlight', 'CriticMarkup: Highlight', 'Ctrl+Alt+Y'),
+                                 ('comment', 'CriticMarkup: Comment', 'Ctrl+Alt+K')):
+            action = QAction(text, self)
+            action.setShortcut(keys)
+            self.criticActions[kind] = action
+            setattr(self, f'critic_{kind}_action', action)      # found by the command palette
 
         self.insertLinkAltAction = QAction('Insert Link to Note (title the other way round)', self)
         self.insertLinkAltAction.setShortcut('Ctrl+Shift+L')
@@ -373,6 +389,9 @@ class Sublimeless_Zk(QObject):
         edit_format.addAction(self.formatCodeAction)
         edit_format.addAction(self.formatDashListAction)
         edit_format.addAction(self.formatNumberListAction)
+        edit_format.addSeparator()
+        for action in self.criticActions.values():
+            edit_format.addAction(action)
         edit.addSeparator()
         edit.addAction(self.insertLinkAction)
         edit.addAction(self.insertLinkAltAction)
@@ -462,6 +481,8 @@ class Sublimeless_Zk(QObject):
         self.formatCodeAction.triggered.connect(lambda: self.format_selection('`'))
         self.formatDashListAction.triggered.connect(lambda: self.format_list(False))
         self.formatNumberListAction.triggered.connect(lambda: self.format_list(True))
+        for kind, action in self.criticActions.items():
+            action.triggered.connect(lambda checked=False, kind=kind: self.critic(kind))
         self.newKeepTextAction.triggered.connect(lambda: self.zk_new_zettel(keep_text=True))
         self.insertLinkAltAction.triggered.connect(lambda: self.insert_link(toggle_title=True))
         self.followLinkCloseParentAction.triggered.connect(self.follow_link_close_parent)
@@ -535,6 +556,9 @@ class Sublimeless_Zk(QObject):
             Qt.AltModifier | Qt.Key_B,
             Qt.AltModifier | Qt.Key_N,
             Qt.AltModifier | Qt.Key_R,
+            Qt.AltModifier | Qt.Key_A, Qt.AltModifier | Qt.Key_X, Qt.AltModifier | Qt.Key_U,
+            Qt.AltModifier | Qt.Key_Y, Qt.AltModifier | Qt.Key_K,
+            Qt.ShiftModifier | Qt.Key_Slash, Qt.ShiftModifier | Qt.Key_Question,
             Qt.ShiftModifier | Qt.Key_O,
             Qt.ShiftModifier | Qt.Key_I,
             Qt.ShiftModifier | Qt.Key_H,
@@ -556,6 +580,10 @@ class Sublimeless_Zk(QObject):
             deletable_keys.append(key_combo)
 
         for key_combo in deletable_keys:
+            # a plain number: combining keys with | gives an object that never
+            # equals command.key(), and then the editor's own command stayed
+            # bound (e.g. Ctrl+Shift+L kept deleting the line)
+            key_combo = int(key_combo)
             command = commands.boundTo(key_combo)
             if command is not None:
                 #print('Clearing key combo', QKeySequence(key_combo).toString(), 'for command', command.description())
@@ -770,7 +798,7 @@ class Sublimeless_Zk(QObject):
                     if index >= 0:
                         self.tab_close_requested(index)
                 return editor
-            self.notify(f'There is no note with the ID {noteid}')
+            self.notify(f'There is no note with the ID {noteid}', warning=True)
 
     def clicked_tag(self, tag, ctrl, alt, shift):
         print('tag', tag)
@@ -1278,7 +1306,7 @@ class Sublimeless_Zk(QObject):
                 sys.stderr.write(details)
             if self.gui is not None:
                 self.notify(f'Something went wrong ({exc_type.__name__}). The app keeps running; '
-                            f'details are in {log_filn}', 20)
+                            f'details are in {log_filn}', 20, warning=True)
         except Exception:
             pass
 
@@ -1288,15 +1316,33 @@ class Sublimeless_Zk(QObject):
     def shortcuts_dialog(self):
         groups = cheatsheet.collect_menu_shortcuts(self.gui.menuBar())
         groups.append(('Typing and mouse', cheatsheet.TYPING_AND_MOUSE))
+        groups.append(('Searching for tags', cheatsheet.TAG_SEARCH_SYNTAX))
+        groups.append(('Finding text in all notes', cheatsheet.FILE_SEARCH_SYNTAX))
         return cheatsheet.ShortcutsDialog(self.gui, groups, self.SHORTCUTS_KEYS)
 
     def show_shortcuts(self):
         """The cheatsheet: all keyboard shortcuts in one window, with a filter."""
         self.shortcuts_dialog().exec_()
 
-    def notify(self, msg, seconds=8):
-        """Show a message in the status bar for a few seconds."""
-        self.gui.statusBar().showMessage(msg, seconds * 1000)
+    def notify(self, msg, seconds=8, warning=False):
+        """
+        Show a message in the status bar for a few seconds; warnings in bold
+        red, so that they are noticed in the corner of the window.
+        """
+        bar = self.gui.statusBar()
+        if not getattr(self, '_notify_connected', False):
+            self._notify_connected = True
+            self._statusbar_style = bar.styleSheet()
+            # back to the normal look when the message goes away
+            bar.messageChanged.connect(lambda text: None if text else bar.setStyleSheet(self._statusbar_style))
+        bar.setStyleSheet(self._statusbar_style + 'QStatusBar { color: #d92d20; font-weight: bold; }'
+                          if warning else self._statusbar_style)
+        bar.showMessage(msg, seconds * 1000)
+
+    def critic(self, kind):
+        editor = self.get_active_editor()
+        if isinstance(editor, ZettelkastenScintilla) and editor.editor_type == 'normal':
+            editfeatures.critic_markup(editor, kind)
 
     def safe_filename_part(self, title):
         """
@@ -1306,7 +1352,7 @@ class Sublimeless_Zk(QObject):
         safe = sanitize_filename(title)
         if safe != title:
             self.notify('Characters that are not allowed in file names ( \\ / : " * ? < > | ) '
-                        'were replaced by - in the file name', 12)
+                        'were replaced by - in the file name', 12, warning=True)
         return safe
 
     def format_selection(self, marker):
@@ -1487,8 +1533,18 @@ class Sublimeless_Zk(QObject):
         editor = self.get_active_editor()
         if not isinstance(editor, ZettelkastenScintilla):
             return
-        tag_list_dict = {f: f for f in self.project.find_all_tags()}
-        selected_tag, _ = show_fuzzy_panel(self.gui.qtabs, 'Insert Tag', tag_list_dict)
+        _, tags2ids = self.project.find_all_notes_all_tags()
+        counts = {tag: len(set(ids)) for tag, ids in tags2ids.items()}
+        for tag in self.project.find_all_tags():
+            counts.setdefault(tag, 0)
+        tag_list_dict = {f'{tag} ({counts[tag]})': tag for tag in sorted(counts, key=lambda t: t.lower())}
+        typed, selected_tag = show_fuzzy_panel(self.gui.qtabs, 'Insert Tag (Enter on a new name creates the tag)',
+                                               tag_list_dict, allow_new=True)
+        if selected_tag == fuzzypanel_new_entry:
+            # no such tag yet: use what was typed
+            selected_tag = '#' + typed.split()[0].lstrip('#')
+            if selected_tag == '#':
+                selected_tag = None
         if selected_tag:
             # check if editor contains #? right before current cursor position
             line, index = editor.getCursorPosition()
@@ -1520,7 +1576,7 @@ class Sublimeless_Zk(QObject):
         else:
             # link to a note that does not exist: still list who links to it
             title = '(note does not exist)'
-            self.notify(f'There is no note with the ID {note_id}')
+            self.notify(f'There is no note with the ID {note_id}', warning=True)
         styled_link = self.project.style_link(note_id, title, force_title=True)
         self.project.externalize_note_links(ref_note_files, f'# {len(ref_note_files)} Notes referencing {styled_link}')
         self.reload(self.gui.search_results_editor)
@@ -1920,7 +1976,10 @@ class Sublimeless_Zk(QObject):
         if not search_spec:
             _, tags2ids = self.project.find_all_notes_all_tags()
             tag_counts = {tag: len(set(ids)) for tag, ids in tags2ids.items()}
-            search_spec = show_tag_search_panel(self.gui, '#tags and not !#tags:', tag_counts)
+            search_spec = show_tag_search_panel(self.gui, 'Tags:', tag_counts)
+            if search_spec:
+                # in this panel everything is a tag: the # may be left out
+                search_spec = TagSearch.normalize(search_spec)
         if not search_spec:
             return
         # get search attrs and strip them from search term
