@@ -1,6 +1,6 @@
 import sys
 import os
-from PyQt5.Qt import QUrl, Qt, pyqtSignal
+from PyQt5.QtCore import QUrl, Qt, pyqtSignal
 from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout, QVBoxLayout, QSplitter, QFrame, QProgressBar, QApplication, QComboBox, QFileDialog, QMessageBox, QDialog
 from PyQt5.QtGui import QDesktopServices
 from libzk2setevi.convert import Zk2Setevi

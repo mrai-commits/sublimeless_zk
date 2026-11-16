@@ -43,15 +43,41 @@ except Exception:
 hiddenimports = (collect_submodules('pygments') + collect_submodules('markdown') + collect_submodules('spylls')
                  + ['PyQt5.QtPrintSupport'])
 
+# The app uses QtCore, QtGui, QtWidgets, QtPrintSupport and QScintilla only.
+# Everything else of Qt is left out; the web engine alone is about 250 MB.
+UNUSED_QT = ['PyQt5.' + name for name in (
+    'Qt', 'QtWebEngine', 'QtWebEngineCore', 'QtWebEngineWidgets', 'QtWebChannel', 'QtWebSockets',
+    'QtQml', 'QtQuick', 'QtQuick3D', 'QtQuickWidgets', 'QtMultimedia', 'QtMultimediaWidgets',
+    'QtBluetooth', 'QtNfc', 'QtSensors', 'QtSerialPort', 'QtSql', 'QtTest', 'QtLocation',
+    'QtPositioning', 'QtDesigner', 'QtHelp', 'QtOpenGL', 'QtRemoteObjects', 'QtTextToSpeech',
+    'QtXmlPatterns', 'QtNetworkAuth', 'QtDBus', 'QtSvg', 'QtXml', 'QtNetwork', 'QAxContainer')]
+
 a = Analysis(
     ['src/sublimeless_zk.py'],
     pathex=['src'],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=['tkinter', 'numpy', 'scipy', 'matplotlib'],
+    excludes=['tkinter', 'numpy', 'scipy', 'matplotlib'] + UNUSED_QT,
     noarchive=False,
 )
+
+def unused(entry):
+    """Qt files that only the left-out modules need: QML, the web engine's
+    resources and helper program, and the translations of Qt's own dialogs."""
+    dest = entry[0].replace('\\', '/')
+    return any(part in dest for part in (
+        '/Qt5/qml/', '/Qt5/resources/', '/Qt5/libexec/', '/Qt5/translations/',
+        '/Qt/qml/', '/Qt/resources/', '/Qt/libexec/', '/Qt/translations/',
+        'QtWebEngine', 'Qt5WebEngine', 'Qt5Quick', 'Qt5Qml', 'Qt5Multimedia', 'Qt5Designer',
+        'Qt53D', 'Qt5Location', 'Qt5Positioning', 'Qt5Sensors', 'Qt5Bluetooth', 'Qt5Nfc', 'Qt5Sql', 'Qt5Test',
+        'Qt5Help', 'Qt5RemoteObjects', 'Qt5TextToSpeech', 'Qt5XmlPatterns', 'Qt5SerialPort', 'Qt5WebChannel',
+        'Qt5WebSockets', 'Qt5WebView'))
+
+
+a.binaries = [entry for entry in a.binaries if not unused(entry)]
+a.datas = [entry for entry in a.datas if not unused(entry)]
+
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],

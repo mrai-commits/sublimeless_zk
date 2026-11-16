@@ -3,7 +3,7 @@ A custom menu item to show sortcuts that are not QShortcuts
 """
 
 from PyQt5.QtWidgets import QAction
-from PyQt5.Qt import QFont, QFontMetrics
+from PyQt5.QtGui import QFont, QFontMetrics
 
 
 def makelongenough(text, w=20, p=False, font=None):

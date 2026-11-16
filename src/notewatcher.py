@@ -189,7 +189,7 @@ class NotesWatcher(QObject):
 
 if __name__ == "__main__":
     import time
-    from PyQt5.Qt import QApplication
+    from PyQt5.QtWidgets import QApplication
     import tempfile
     
     app = QApplication([])
