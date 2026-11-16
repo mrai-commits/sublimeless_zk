@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {os: macos-latest,   label: macOS-arm64}
+          - {os: macos-15,       label: macOS-arm64}
           - {os: windows-latest, label: Windows}
           - {os: ubuntu-22.04,   label: Linux}
 
