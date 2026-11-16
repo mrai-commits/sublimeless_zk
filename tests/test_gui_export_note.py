@@ -99,6 +99,21 @@ def test_yaml_style_wins(app):
     check('a csl line in the note header wins over the setting', 'other: a book' in docx_text(out).lower())
 
 
+def test_style_in_a_subfolder(app):
+    os.makedirs(os.path.join(ZK, 'resources', 'styles'), exist_ok=True)
+    with open(os.path.join(ZK, 'resources', 'styles', 'deep.csl'), 'w', encoding='utf-8') as f:
+        f.write(CSL % ('Deep', 'deep', 'DEEP'))
+    app.open_document(N)
+    app.project.settings['csl'] = 'deep.csl'
+    out = app.export_note('docx', os.path.join(OUT, 'deep.docx'), open_result=False)
+    check('a style in a subfolder of the notes folder is found', bool(out) and 'deep: a book' in docx_text(out).lower())
+    path = note('201801010603 Yaml deep.md', '---\ncsl: deep.csl\n---\n\nText [@smith2020].\n')
+    app.open_document(path)
+    app.project.settings['csl'] = ''
+    out = app.export_note('docx', os.path.join(OUT, 'deep2.docx'), open_result=False)
+    check('also when the note header names it', bool(out) and 'deep: a book' in docx_text(out).lower())
+
+
 def test_missing_style_is_explained(app):
     from harness import messages
     app.open_document(N)
@@ -111,5 +126,5 @@ def test_missing_style_is_explained(app):
 
 
 run_gui_tests([test_pandoc_is_found, test_word, test_pdf, test_pdf_without_pandoc, test_citation_style_setting,
-               test_yaml_style_wins, test_missing_style_is_explained, test_no_note_open])
+               test_yaml_style_wins, test_style_in_a_subfolder, test_missing_style_is_explained, test_no_note_open])
 print(OUT)

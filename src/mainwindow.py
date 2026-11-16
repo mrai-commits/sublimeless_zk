@@ -4,13 +4,49 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.Qsci import *
-from PyQt5.QtCore import Qt, pyqtSignal, QRect
+from PyQt5.QtCore import Qt, pyqtSignal, QRect, QObject, QEvent
 
 from zkscintilla import ZettelkastenScintilla
 from zkmdlexer import ZkMdLexer
 from themes import Theme
 from settings import base_dir
 from opennoteswidget import OpenNotesPanel
+
+class TabSwiper(QObject):
+    """
+    Move through the tabs with the trackpad or mouse wheel: with the pointer
+    on the tab bar, a two-finger swipe to the left or right (or turning the
+    wheel) goes to the next or previous tab, as in a web browser.
+    """
+    STEP = 120          # scroll distance per tab; one notch of a mouse wheel
+
+    def __init__(self, tab_widget):
+        super().__init__(tab_widget)
+        self.tabs = tab_widget
+        self.travelled = 0
+        tab_widget.tabBar().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() != QEvent.Wheel:
+            return False
+        delta = event.angleDelta()
+        # a sideways swipe counts first; a plain mouse wheel turns vertically
+        amount = delta.x() if abs(delta.x()) >= abs(delta.y()) else delta.y()
+        if amount == 0:
+            return True
+        if (amount > 0) != (self.travelled > 0):
+            self.travelled = 0          # changed direction
+        self.travelled += amount
+        steps = int(abs(self.travelled) / self.STEP)
+        if steps:
+            # swiping left (negative) brings the tabs on the right, like scrolling
+            direction = -1 if self.travelled > 0 else 1
+            self.travelled -= (self.STEP * steps) * (1 if self.travelled > 0 else -1)
+            target = max(0, min(self.tabs.count() - 1, self.tabs.currentIndex() + direction * steps))
+            if target != self.tabs.currentIndex():
+                self.tabs.setCurrentIndex(target)
+        return True
+
 
 class MainWindow(QMainWindow):    
     def __init__(self, theme, close_handler):
@@ -60,6 +96,7 @@ class MainWindow(QMainWindow):
         self.subsplit = subsplit
         self.setUnifiedTitleAndToolBarOnMac(True)
         self.qtabs.setTabsClosable(True)
+        self.tab_swiper = TabSwiper(self.qtabs)
         if sys.platform == 'win32':
             self.setWindowIcon(QIcon(f"{os.path.join(base_dir(), 'sublimeless_zk.ico')}"))
             

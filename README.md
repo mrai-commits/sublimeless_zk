@@ -1450,7 +1450,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 * Citations with a prefix or without author are recognized and highlighted: `[-@smith2020]`, `[e.g., @smith2020, p. 3; @miller2019]`. Each citekey is clickable on its own.
 * A plain click into a citation places the cursor, so you can edit it. <kbd>ctrl/cmd</kbd> + click opens the notes citing the source. Use `"citations_need_cmd_click": false` to go back to the plain click.
-* Choose your citation style with `"csl": "apa-6th-edition.csl"` and put the `.csl` file into your notes folder (a full path works, too). It is used for the automatic bibliography, for full references, and for the export to Word and PDF. Without it you get pandoc's default, Chicago author-date. A note can have its own style with a line `csl: name.csl` in its YAML header.
+* Choose your citation style with `"csl": "apa-6th-edition.csl"` and put the `.csl` file into your notes folder or any folder inside it (a full path works, too). It is used for the automatic bibliography, for full references, and for the export to Word and PDF. Without it you get pandoc's default, Chicago author-date. A note can have its own style with a line `csl: name.csl` in its YAML header.
 * The [automatic bibliography](#automatic-bibliographies) works with current versions of pandoc and is produced in one go, which is much faster for long notes.
 * <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>R</kbd> lets you pick a source and inserts its full reference at the cursor, e.g. `Weick, Karl E. 1995. Sensemaking in Organizations. Sage.`
 * In the citation list, and in all other selection lists, type several words to narrow down quickly: `weick 1995` or `sensemaking weick`. Case and accents don't matter (`gumusay` finds Gümüsay).
@@ -1503,6 +1503,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 * <kbd>ctrl/cmd</kbd> + <kbd>?</kbd> shows all keyboard shortcuts in one window, grouped like the menus. Type to filter, e.g. `tag`; <kbd>esc</kbd> closes it. The [command palette](#command-palette) shows the shortcut beside each command.
 * The status bar shows the number of words in the selection: `Words: 12 of 950`.
 * The sizes of the panels, and the size and position of the window, are remembered.
+* With the pointer on the tab bar, a two-finger swipe to the left or right on the trackpad, or the mouse wheel, moves through the tabs.
 * In the lists of the command palette and the note, tag, and citation selectors, <kbd>up</kbd> on the first entry jumps to the last one, and <kbd>down</kbd> on the last to the first.
 * Long notes: typing stays fast in notes of 10,000 words and more.
 * The Ubuntu Mono fonts used by the themes come with the app and need not be installed.

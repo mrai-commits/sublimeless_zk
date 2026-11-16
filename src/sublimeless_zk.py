@@ -1758,7 +1758,10 @@ class Sublimeless_Zk(QObject):
                 if editor.text()[h_start:h_start + 1] == '\n':
                     line += 1
                 editor.setCursorPosition(line, 0)
-                editor.setFirstVisibleLine(line)
+                # put the heading at the top of the view. With wrapped lines
+                # the screen line differs from the line number in the note
+                screen_line = editor.SendScintilla(QsciScintilla.SCI_VISIBLEFROMDOCLINE, line)
+                editor.SendScintilla(QsciScintilla.SCI_SETFIRSTVISIBLELINE, screen_line)
                 editor.setFocus()
                 return True
         self.notify('This note has no heading for ' + anchor + '. Run the table of contents command to refresh it.')
@@ -2142,7 +2145,8 @@ class Sublimeless_Zk(QObject):
         """
         settings_folder = os.path.join(self.app_state.home, 'sublimeless_zk.rc')
         folders = [note_folder, self.project.folder, settings_folder, os.path.join(settings_folder, 'csl')]
-        return noteexport.style_args(text, self.project.settings.get('csl', ''), folders)
+        return noteexport.style_args(text, self.project.settings.get('csl', ''), folders,
+                                     search_below=self.project.folder)
 
     def export_note(self, kind, out_path=None, open_result=True):
         """

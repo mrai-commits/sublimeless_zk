@@ -106,7 +106,7 @@ def test_tab_indents_list_items(app):
 
 
 def test_toc_entries_jump(app):
-    body = '\n'.join('filler line %d' % i for i in range(60))
+    body = '\n'.join(('filler line %d ' % i) + 'lorem ipsum dolor sit amet ' * 12 for i in range(60))
     text = ('<!-- table of contents (auto) -->\n<!-- (end of auto-toc) -->\n\n# First part\n\n' + body +
             '\n\n## Second [@smith2020] part\n\n' + body + '\n\n## Dritter Teil mit Ümlaut\n\ntext\n')
     e = fresh(app, text)
@@ -119,10 +119,40 @@ def test_toc_entries_jump(app):
     e.lexer().on_click_indicator(line, col, 0); app.app.processEvents()
     target = [i for i in range(e.lines()) if e.text(i).startswith('## Dritter')][0]
     check('clicking a TOC entry jumps to its heading', e.getCursorPosition()[0], target)
-    check('and scrolls it into view', e.firstVisibleLine() <= target <= e.firstVisibleLine() + 40 and e.firstVisibleLine() > 20)
+    line = [i for i in range(e.lines()) if e.text(i).lstrip().startswith('* [Second @smith2020')][0]
+    e.lexer().on_click_indicator(line, e.text(line).index('Second') + 2, 0); app.app.processEvents()
+    target = [i for i in range(e.lines()) if e.text(i).startswith('## Second')][0]
+    check('an entry whose heading has a citekey is clickable', e.getCursorPosition()[0], target)
+    check('the heading is put at the very top, also with wrapped lines',
+          e.SendScintilla(e.SCI_GETFIRSTVISIBLELINE), e.SendScintilla(e.SCI_VISIBLEFROMDOCLINE, target))
     line = [i for i in range(e.lines()) if e.text(i).lstrip().startswith('* [First')][0]
     e.lexer().on_click_indicator(line, e.text(line).index('#first') + 2, 0); app.app.processEvents()
     check('clicking the anchor part works too', e.text(e.getCursorPosition()[0]), '# First part\n')
+
+
+def test_swipe_over_tabs(app):
+    from PyQt5.QtCore import QPoint, QPointF
+    from PyQt5.QtGui import QWheelEvent
+    from PyQt5.QtWidgets import QApplication
+    for path in (N1, N2, N3):
+        app.open_document(path)
+    tabs, bar = app.gui.qtabs, app.gui.qtabs.tabBar()
+    tabs.setCurrentIndex(1)
+
+    def swipe(dx, dy=0):
+        event = QWheelEvent(QPointF(10, 5), QPointF(bar.mapToGlobal(QPoint(10, 5))), QPoint(0, 0), QPoint(dx, dy),
+                            Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False)
+        QApplication.sendEvent(bar, event); app.app.processEvents()
+
+    for _ in range(4):
+        swipe(-40)                              # small steps, as a trackpad sends them
+    check('a two-finger swipe to the left goes to the next tab', tabs.currentIndex(), 2)
+    swipe(120)
+    check('a swipe to the right goes back', tabs.currentIndex(), 1)
+    swipe(0, 120)
+    check('a mouse wheel over the tabs works too', tabs.currentIndex(), 0)
+    swipe(600)
+    check('it stops at the first tab', tabs.currentIndex(), 0)
 
 
 def test_selection_word_count(app):            # item 31
@@ -308,7 +338,7 @@ def test_citation_needs_modifier(app):         # item 41
     check('follow-link key opens it', clicked, ['@smith2020', '@smith2020'])
 
 
-run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_tab_indents_list_items, test_toc_entries_jump,
+run_gui_tests([test_format_shortcuts, test_list_toggle, test_list_continuation, test_tab_indents_list_items, test_toc_entries_jump, test_swipe_over_tabs,
                test_selection_word_count,
                test_tag_counts, test_recent_periods, test_palette_wraps_around, test_pane_sizes_remembered,
                test_new_note_keep_text, test_insert_link_other_way, test_follow_link_close_parent,

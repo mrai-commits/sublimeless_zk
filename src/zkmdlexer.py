@@ -1,4 +1,5 @@
 import re
+import sys
 import bisect
 
 from PyQt5.QtCore import pyqtSignal
@@ -66,7 +67,10 @@ class ZkMdLexer(QsciLexerCustom):
         # setting "editor_font_size_adjust": points added to every font size
         # of the theme, e.g. 1 or -0.5, without editing the theme itself
         try:
-            size_adjust = float(get_settings().get('editor_font_size_adjust', 0) or 0)
+            # on macOS the same point size comes out slightly smaller with the
+            # current Qt than it did in version 0.9: half a point makes up for it
+            default_adjust = 0.5 if sys.platform == 'darwin' else 0
+            size_adjust = float(get_settings().get('editor_font_size_adjust', default_adjust))
         except (TypeError, ValueError):
             size_adjust = 0
         self.default_font =  QFont(self.theme.font_info['face'],
@@ -182,7 +186,9 @@ class ZkMdLexer(QsciLexerCustom):
     # a pandoc citation in brackets: anything may precede a key ("e.g., ",
     # "see ", "-") as long as the @ does not follow a letter or digit
     # (that would be an e-mail address); or a MultiMarkdown [#key]
-    citation_re = re.compile(r'\[(?:[^\]\[\n@]*[^\]\[\n@\w])?@[^\]\[\n]*\]|\[[a-zA-Z:\.\s]*#[^\]\[\n]*\]')
+    # (not when a "(" follows: then it is the text of a link, e.g. a table of
+    # contents entry for a heading that contains a citekey)
+    citation_re = re.compile(r'\[(?:[^\]\[\n@]*[^\]\[\n@\w])?@[^\]\[\n]*\](?!\()|\[[a-zA-Z:\.\s]*#[^\]\[\n]*\](?!\()')
     citekey_in_citation_re = re.compile(r'-?(?P<key>(?<![\w])[@#][\w][\w:.#$%&\-+?<>~/]*)')
     citekey_at_click_re = re.compile(r'[@#][\w][\w:.#$%&\-+?<>~/]*')
     hyperlink_at_click_re = re.compile(r'[^)\n]*')

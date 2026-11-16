@@ -155,16 +155,33 @@ class SpellChecker:
 
     def _suggest(self, word, limit, seconds):
         import time
+        import unicodedata
         deadline = time.time() + seconds
         capitalized = word[:1].isupper()
+        lower = word.lower()
         alphabet = ''.join(dict.fromkeys(''.join(ALPHABETS.get(lang[:2], ALPHABETS['en'])
                                                    for lang in self.dictionaries)))
-        candidates = list(self._edits(word.lower(), alphabet))
+        candidates = list(self._edits(lower, alphabet))
+
+        # the likeliest slips: swapped or doubled letters, and a missing or
+        # wrong accent. Cheap enough to try in every dictionary
+        def base(letter):
+            return unicodedata.normalize('NFKD', letter)[:1]
+        accents = {}
+        for letter in alphabet:
+            accents.setdefault(base(letter), []).append(letter)
+        splits = [(lower[:i], lower[i:]) for i in range(len(lower) + 1)]
+        likely = [a + b[1] + b[0] + b[2:] for a, b in splits if len(b) > 1]
+        likely += [a + b[1:] for a, b in splits if b]
+        likely += [a + variant + b[1:] for a, b in splits if b
+                   for variant in accents.get(base(b[0]), []) if variant != b[0]]
+        likely = set(likely)
+
         found = {}                      # position in candidates -> word as shown
 
-        def try_dictionary(dictionary):
+        def try_dictionary(dictionary, only_likely, until):
             for position, candidate in enumerate(candidates):
-                if position in found:
+                if position in found or (only_likely and candidate not in likely):
                     continue
                 shown = candidate[:1].upper() + candidate[1:] if capitalized else candidate
                 try:
@@ -173,15 +190,23 @@ class SpellChecker:
                     ok = False
                 if ok:
                     found[position] = shown
-                if time.time() > deadline:
-                    return False
-            return True
+                if time.time() > until:
+                    return
 
-        # quick dictionaries first: they get through all candidates in a few
-        # hundredths of a second; the slow one (French) uses the time left
-        for lang in sorted(self.dictionaries, key=lambda l: self.lookup_cost.get(l, 0)):
-            if not try_dictionary(self.dictionaries[lang]):
-                break
+        # A dictionary that needs a millisecond to reject a non-word (French)
+        # cannot try the 600 or so candidates of a word in reasonable time.
+        costs = self.lookup_cost
+        fastest = min(costs.values()) if costs else 0
+        quick = [lang for lang in self.dictionaries if costs.get(lang, 0) <= 3 * fastest]
+        slow = [lang for lang in self.dictionaries if lang not in quick]
+        for lang in quick:
+            try_dictionary(self.dictionaries[lang], False, deadline)
+        for lang in slow:
+            try_dictionary(self.dictionaries[lang], True, deadline)
+        if not found:
+            # nothing yet: give the slow dictionaries a short full try
+            for lang in slow:
+                try_dictionary(self.dictionaries[lang], False, min(deadline, time.time() + 0.4))
         return [found[position] for position in sorted(found)][:limit]
 
     def measure_lookup_cost(self):

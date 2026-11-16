@@ -33,16 +33,21 @@ class ExportError(Exception):
 YAML_HEADER_RE = re.compile(r'\A---[ \t]*\n(.*?)\n(?:---|\.\.\.)[ \t]*(?:\n|\Z)', re.DOTALL)
 
 
-def yaml_has_csl(text):
-    """True if the note's YAML header names a citation style itself."""
+def yaml_csl(text):
+    """The citation style named in the note's YAML header, or None."""
     header = YAML_HEADER_RE.match(text)
-    return bool(header and re.search(r'^csl:[ \t]*\S', header.group(1), re.MULTILINE))
+    if not header:
+        return None
+    match = re.search(r'^csl:[ \t]*(\S.*?)[ \t]*$', header.group(1), re.MULTILINE)
+    return match.group(1).strip('\'"') if match else None
 
 
-def find_csl(name, folders):
+def find_csl(name, folders, search_below=None):
     """
     Full path of a citation style file. `name` may be a full path, or a file
-    name with or without .csl that is looked for in `folders`, in order.
+    name with or without .csl. It is looked for in `folders`, in order, and
+    then in all folders below `search_below` (the notes folder), so the file
+    can sit in a subfolder such as "styles".
     """
     if not name:
         return None
@@ -57,25 +62,37 @@ def find_csl(name, folders):
             path = os.path.join(folder, candidate)
             if os.path.isfile(path):
                 return path
+    if search_below and os.path.isdir(search_below):
+        wanted = {os.path.basename(candidate).lower() for candidate in names}
+        for root, dirs, files in os.walk(search_below):
+            dirs[:] = sorted(d for d in dirs if not d.startswith('.'))
+            for filn in sorted(files):
+                if filn.lower() in wanted:
+                    return os.path.join(root, filn)
     return None
 
 
-def style_args(text, csl_setting, folders):
+def style_args(text, csl_setting, folders, search_below=None):
     """
     Pandoc arguments for the citation style.
     - `folders` are where style and bib files named without a path are found:
-      beside the note, in the notes folder, in the settings folder.
+      beside the note, in the notes folder, in the settings folder; style
+      files are also found in any subfolder of `search_below`.
     - A `csl:` line in the note's YAML header wins over the setting.
     - Without either, pandoc uses its default (Chicago author-date).
     """
     folders = [f for f in dict.fromkeys(folders) if f and os.path.isdir(f)]
     args = ['--resource-path', os.pathsep.join(folders)] if folders else []
-    if yaml_has_csl(text) or not csl_setting:
+    in_note = yaml_csl(text)
+    wanted = in_note or csl_setting
+    if not wanted:
         return args
-    path = find_csl(csl_setting, folders)
+    path = find_csl(wanted, folders, search_below)
     if not path:
-        raise ExportError(f'The citation style "{csl_setting}" (setting "csl") was not found.\n\n'
-                          'Looked in:\n' + '\n'.join(folders))
+        where = 'the header of this note' if in_note else 'the setting "csl"'
+        raise ExportError(f'The citation style "{wanted}" ({where}) was not found.\n\n'
+                          'Looked in:\n' + '\n'.join(folders)
+                          + (f'\nand in the folders below {search_below}' if search_below else ''))
     return args + ['--csl', path]
 
 
