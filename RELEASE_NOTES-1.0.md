@@ -51,5 +51,6 @@ The first release since 0.9. It brings the app to current versions of Python and
 
 ## Changed shortcuts
 
+* Save All moved from <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>S</kbd> to <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>U</kbd>. <kbd>S</kbd> now marks a CriticMarkup substitution.
 * Insert bibliography moved from <kbd>ctrl/cmd</kbd> + <kbd>B</kbd> to <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>B</kbd>. <kbd>ctrl/cmd</kbd> + <kbd>B</kbd> now makes text bold.
 * Citations open with <kbd>ctrl/cmd</kbd> + click. A plain click places the cursor. `"citations_need_cmd_click": false` restores the old behaviour.

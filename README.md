@@ -1489,7 +1489,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 #### CriticMarkup
 
 * With `"critic_markup": true`, [CriticMarkup](http://criticmarkup.com) is highlighted: `{++added++}`, `{--deleted--}`, `{~~old~>new~~}`, `{==marked==}`, and `{>>comment<<}`.
-* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>A</kbd> to mark it as added, <kbd>X</kbd> as deleted, <kbd>U</kbd> as substituted, <kbd>Y</kbd> to highlight it, <kbd>C</kbd> to add a comment after it. The same commands are in Edit > Format.
+* Select text and press <kbd>ctrl/cmd</kbd> + <kbd>alt/opt</kbd> + <kbd>A</kbd> to mark it as added, <kbd>X</kbd> as deleted, <kbd>S</kbd> as substituted, <kbd>Y</kbd> to highlight it, <kbd>C</kbd> to add a comment after it. The same commands are in Edit > Format.
 * The colors work with all themes. To change them, add `"critic.addition"`, `"critic.deletion"`, `"critic.highlight"`, and `"critic.comment"` to [your theme](#customizing-themes), e.g. `"critic.addition": {"color": "#1a7f37", "background": "#dafbe1"}`.
 
 #### Export to Word and PDF

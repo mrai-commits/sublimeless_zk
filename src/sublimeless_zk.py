@@ -104,7 +104,8 @@ class Sublimeless_Zk(QObject):
         self.saveAction.setShortcut('Ctrl+S')
 
         self.saveAllAction = QAction("Save All", self)
-        self.saveAllAction.setShortcut('Ctrl+Alt+S')
+        # Ctrl+Alt+S went to the CriticMarkup substitution in 1.0
+        self.saveAllAction.setShortcut('Ctrl+Alt+U')
 
         self.showPreferencesAction = QAction("Settings...", self)
 
@@ -160,12 +161,12 @@ class Sublimeless_Zk(QObject):
             'Ctrl+Shift+Return' if sys.platform == 'darwin' else 'Alt+Shift+Return')])
 
         # CriticMarkup: the first letter where it is free. Not free are
-        # D (macOS: show/hide the Dock), H (macOS: hide other apps) and
-        # S (Save All in this app), hence X, Y and U
+        # D (macOS: show/hide the Dock) and H (macOS: hide other apps),
+        # hence X and Y
         self.criticActions = {}
         for kind, text, keys in (('add', 'CriticMarkup: Addition', 'Ctrl+Alt+A'),
                                  ('delete', 'CriticMarkup: Deletion', 'Ctrl+Alt+X'),
-                                 ('substitute', 'CriticMarkup: Substitution', 'Ctrl+Alt+U'),
+                                 ('substitute', 'CriticMarkup: Substitution', 'Ctrl+Alt+S'),
                                  ('highlight', 'CriticMarkup: Highlight', 'Ctrl+Alt+Y'),
                                  ('comment', 'CriticMarkup: Comment', 'Ctrl+Alt+C')):
             action = QAction(text, self)
@@ -558,7 +559,7 @@ class Sublimeless_Zk(QObject):
             Qt.AltModifier | Qt.Key_B,
             Qt.AltModifier | Qt.Key_N,
             Qt.AltModifier | Qt.Key_R,
-            Qt.AltModifier | Qt.Key_A, Qt.AltModifier | Qt.Key_X, Qt.AltModifier | Qt.Key_U,
+            Qt.AltModifier | Qt.Key_A, Qt.AltModifier | Qt.Key_X, Qt.AltModifier | Qt.Key_U, Qt.AltModifier | Qt.Key_S,
             Qt.AltModifier | Qt.Key_Y, Qt.AltModifier | Qt.Key_C,
             Qt.ShiftModifier | Qt.Key_Slash, Qt.ShiftModifier | Qt.Key_Question,
             Qt.ShiftModifier | Qt.Key_O,

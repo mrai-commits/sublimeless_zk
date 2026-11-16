@@ -369,7 +369,8 @@ def test_critic_shortcuts(app):                # D11
     e = fresh(app, 'x\n'); e.setSelection(0, 0, 0, 1); app.critic('highlight')
     check('highlight', e.text(), '{==x==}\n')
     check('the marks have shortcuts', [app.criticActions[k].shortcut().toString() for k in ('add', 'delete', 'substitute', 'highlight', 'comment')],
-          ['Ctrl+Alt+A', 'Ctrl+Alt+X', 'Ctrl+Alt+U', 'Ctrl+Alt+Y', 'Ctrl+Alt+C'])
+          ['Ctrl+Alt+A', 'Ctrl+Alt+X', 'Ctrl+Alt+S', 'Ctrl+Alt+Y', 'Ctrl+Alt+C'])
+    check('Save All moved to Ctrl+Alt+U', app.saveAllAction.shortcut().toString(), 'Ctrl+Alt+U')
     import inputpanel
     panel = inputpanel.InputPanel(None, 'Find in files:', '', hint='space: or   comma: and')
     check('the find-in-files window can show its syntax below the input', panel.hint_label is not None and panel.hint_label.text().startswith('space: or'))
