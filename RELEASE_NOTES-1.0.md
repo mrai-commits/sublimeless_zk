@@ -1,6 +1,6 @@
 # Sublimeless Zettelkasten 1.0
 
-The first release since 0.9. It brings the app to current versions of Python and Qt, fixes the bugs below, and adds new functions, which are described in the README under [New in version 1.0](README.md#new-in-version-10).
+The first release since 0.9. It brings the app to current versions of Python and Qt, fixes the bugs below, and adds new functions, which are described in the README under [New in version 1.0](https://github.com/mrai-commits/sublimeless_zk/blob/sublimeless-1.0/README.md#new-in-version-10).
 
 ## Bug fixes
 
@@ -48,6 +48,10 @@ The first release since 0.9. It brings the app to current versions of Python and
 **Other**
 
 * On Linux, web links are opened without passing the address through a shell.
+
+## Other changes
+
+* The HTML export of the whole archive is hidden from the menus, as it needs rework. `"show_html_export": true` in the settings brings it back.
 
 ## Changed shortcuts
 

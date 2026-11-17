@@ -11,9 +11,9 @@ import re
 from subprocess import Popen, PIPE
 
 PDF_CSS = '''
-body { font-family: Georgia, "Times New Roman", serif; font-size: 11pt; }
+body { font-family: %(font)s; font-size: 11pt; }
 h1 { font-size: 20pt; } h2 { font-size: 15pt; } h3 { font-size: 12.5pt; }
-h1, h2, h3, h4 { font-family: Helvetica, Arial, sans-serif; }
+h1, h2, h3, h4 { font-family: %(font)s; }
 code, pre { font-family: Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
 pre { background-color: #f3f3f3; }
 blockquote { color: #444444; margin-left: 18px; }
@@ -126,12 +126,54 @@ def citation_args(pandoc, text, bibfile):
     return Autobib.citeproc_args(pandoc) + ['--bibliography', bibfile]
 
 
-def export_docx(text, out_path, pandoc, bibfile=None, note_folder=None, style=()):
-    """Write the note as a Word document."""
+DEFAULT_FONT = 'Arial'
+
+
+def css(font=DEFAULT_FONT):
+    return PDF_CSS % {'font': '"%s", Arial, sans-serif' % (font or DEFAULT_FONT)}
+
+
+def reference_docx(pandoc, font=DEFAULT_FONT):
+    """
+    A Word template for pandoc with `font` for body text and headings: pandoc's
+    own template, with the theme fonts replaced. Made once per font and kept
+    in the temporary folder.
+    """
+    import tempfile
+    import zipfile
+    font = font or DEFAULT_FONT
+    safe = re.sub(r'[^\w]', '_', font)
+    path = os.path.join(tempfile.gettempdir(), f'sublimeless_zk-reference-{safe}.docx')
+    if os.path.exists(path):
+        return path
+    default = path + '.default'
+    p = Popen([pandoc, '-o', default, '--print-default-data-file', 'reference.docx'], stdout=PIPE, stderr=PIPE)
+    p.communicate()
+    if p.returncode != 0 or not os.path.exists(default):
+        return None
+    escaped = font.replace('&', '&amp;').replace('"', '&quot;')
+    with zipfile.ZipFile(default) as source, zipfile.ZipFile(path + '.tmp', 'w', zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if item.filename == 'word/theme/theme1.xml':
+                text = data.decode('utf-8')
+                text = re.sub(r'(<a:(?:major|minor)Font>\s*<a:latin typeface=")[^"]*(")', r'\g<1>' + escaped + r'\g<2>', text)
+                data = text.encode('utf-8')
+            target.writestr(item, data)
+    os.replace(path + '.tmp', path)
+    os.remove(default)
+    return path
+
+
+def export_docx(text, out_path, pandoc, bibfile=None, note_folder=None, style=(), font=DEFAULT_FONT):
+    """Write the note as a Word document, in `font` (Arial by default)."""
     if not pandoc:
         raise ExportError('Pandoc was not found. It is needed for the export to Word.')
     cite = citation_args(pandoc, text, bibfile)
     args = ['-f', 'markdown', '-t', 'docx', '-o', out_path] + cite + list(style)
+    reference = reference_docx(pandoc, font)
+    if reference:
+        args += ['--reference-doc', reference]
     if note_folder and '--resource-path' not in args:
         args += ['--resource-path', note_folder]
     run_pandoc(pandoc, args, prepare_markdown(text, bool(cite)), cwd=note_folder)
@@ -148,7 +190,8 @@ def note_to_html(text, pandoc=None, bibfile=None, note_folder=None, style=()):
     return markdown.markdown(text, extensions=['extra', 'sane_lists'])
 
 
-def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page_size='A4', style=()):
+def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page_size='A4', style=(),
+               font=DEFAULT_FONT):
     """
     Write the note as a PDF. Needs a running QApplication.
     page_size: 'A4' or 'Letter'.
@@ -158,7 +201,7 @@ def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page
     from PyQt5.QtPrintSupport import QPrinter
 
     body = note_to_html(text, pandoc, bibfile, note_folder, style)
-    html = f'<html><head><meta charset="utf-8"><style>{PDF_CSS}</style></head><body>{body}</body></html>'
+    html = f'<html><head><meta charset="utf-8"><style>{css(font)}</style></head><body>{body}</body></html>'
 
     printer = QPrinter(QPrinter.HighResolution)
     printer.setOutputFormat(QPrinter.PdfFormat)
@@ -173,7 +216,7 @@ def export_pdf(text, out_path, pandoc=None, bibfile=None, note_folder=None, page
     # lay out for the printer's resolution; otherwise point sizes are taken
     # as screen pixels and the text comes out tiny
     doc.documentLayout().setPaintDevice(printer)
-    doc.setDefaultStyleSheet(PDF_CSS)
+    doc.setDefaultStyleSheet(css(font))
     doc.setHtml(html)
     doc.setPageSize(printer.pageRect(QPrinter.DevicePixel).size())
     doc.print_(printer)

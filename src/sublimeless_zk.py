@@ -305,6 +305,8 @@ class Sublimeless_Zk(QObject):
 
         # command palette action **must come last**
         self.command_palette_actions = {action.text(): action for action in self.__dict__.values() if isinstance(action, QAction)}
+        if not get_settings().get('show_html_export', False):
+            self.command_palette_actions.pop(self.exportHtmlAction.text(), None)
         self.commandPaletteAction = QAction('Show Command Palette...', self)
         self.commandPaletteAction.setShortcut('Ctrl+Shift+P')
         return
@@ -358,7 +360,10 @@ class Sublimeless_Zk(QObject):
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exportDocxAction)
         self.file_menu.addAction(self.exportPdfAction)
-        self.file_menu.addAction(self.exportHtmlAction)
+        # The HTML export of the archive is hidden in 1.0 (it needs rework);
+        # the code stays, and "show_html_export": true brings the command back
+        if get_settings().get('show_html_export', False):
+            self.file_menu.addAction(self.exportHtmlAction)
         self.file_menu.addSeparator()
         # here go the most recents
         for i in range(self.recent_projects_limit):
@@ -2238,10 +2243,12 @@ class Sublimeless_Zk(QObject):
         try:
             style = self.citation_style_args(editor.text(), note_folder)
             if kind == 'docx':
-                noteexport.export_docx(editor.text(), out_path, pandoc, bibfile, note_folder, style)
+                noteexport.export_docx(editor.text(), out_path, pandoc, bibfile, note_folder, style,
+                                       font=settings.get('export_font', 'Arial'))
             else:
                 noteexport.export_pdf(editor.text(), out_path, pandoc, bibfile, note_folder,
-                                      page_size=settings.get('pdf_page_size', 'A4'), style=style)
+                                      page_size=settings.get('pdf_page_size', 'A4'), style=style,
+                                      font=settings.get('export_font', 'Arial'))
         except noteexport.ExportError as e:
             QMessageBox.warning(self.gui, 'Export', str(e))
             return None

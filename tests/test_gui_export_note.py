@@ -43,6 +43,29 @@ def test_word(app):
     check('Word: reference appears once', xml.count('A Book') , 1)
 
 
+def test_export_font(app):
+    import zipfile
+    app.open_document(N)
+    out = app.export_note('docx', os.path.join(OUT, 'font.docx'), open_result=False)
+    with zipfile.ZipFile(out) as z:
+        theme = z.read('word/theme/theme1.xml').decode('utf-8')
+    check('Word export uses Arial for text and headings',
+          '<a:latin typeface="Arial"' in theme and 'Aptos' not in theme.split('<a:minorFont>')[1][:200])
+    app.project.settings['export_font'] = 'Courier New'
+    out = app.export_note('docx', os.path.join(OUT, 'font2.docx'), open_result=False)
+    with zipfile.ZipFile(out) as z:
+        check('the font is a setting', '<a:latin typeface="Courier New"' in z.read('word/theme/theme1.xml').decode('utf-8'))
+    app.project.settings['export_font'] = 'Arial'
+    check('PDF style sheet uses Arial', 'font-family: "Arial"' in noteexport.css('Arial'))
+
+
+def test_html_export_hidden(app):
+    titles = [a.text() for a in app.file_menu.actions()]
+    check('the HTML export is not in the File menu', any('HTML' in t for t in titles), False)
+    check('nor in the command palette', any('HTML' in t for t in app.command_palette_actions), False)
+    check('but the function is still there', callable(app.export_to_html))
+
+
 def test_pdf(app):
     app.open_document(N)
     out = app.export_note('pdf', os.path.join(OUT, 'note.pdf'), open_result=False)
@@ -125,6 +148,6 @@ def test_missing_style_is_explained(app):
     app.project.settings['csl'] = ''
 
 
-run_gui_tests([test_pandoc_is_found, test_word, test_pdf, test_pdf_without_pandoc, test_citation_style_setting,
+run_gui_tests([test_pandoc_is_found, test_word, test_export_font, test_html_export_hidden, test_pdf, test_pdf_without_pandoc, test_citation_style_setting,
                test_yaml_style_wins, test_style_in_a_subfolder, test_missing_style_is_explained, test_no_note_open])
 print(OUT)

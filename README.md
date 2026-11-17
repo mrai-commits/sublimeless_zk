@@ -63,7 +63,7 @@ This app is the result of trying to make a stand-alone version of [sublime_zk](h
 * [Automatic Section Numbering](#automatic-section-numbering)
 * [Color Schemes](#color-schemes)
 * [Saved Searches](#saved-searches)
-* [HTML Export into a semantic text view](#html-export)
+* [HTML Export into a semantic text view](#html-export) *(hidden in 1.0)*
 * [Spell checking](#spell-checking) in English, Spanish, and French *(new in 1.0)*
 * [Export of a note to Word and PDF](#export-to-word-and-pdf), with nothing else to install *(new in 1.0)*
 * [Command Palette](#command-palette)
@@ -1192,6 +1192,7 @@ View History       :    =view_history(){sortby: history}
 
 ### HTML Export
 
+**In version 1.0 this command is hidden from the menus**, as it needs rework. To use it anyway, add `"show_html_export": true` to your settings and restart the app.
 
 You can export your note archive, or parts thereof, into a semantic text view, consisting of one big HTML file and optional images:
 
@@ -1490,6 +1491,7 @@ Version 1.0 runs on current versions of Python and Qt, fixes the bugs listed on 
 
 * File > Export Note to Word... and File > Export Note to PDF... save the current note as a `.docx` or `.pdf` file and open it.
 * Nothing needs to be installed for this: pandoc comes with the app, and the PDF is produced by the app itself, without LaTeX.
+* Both use Arial; choose another font with `"export_font": "Helvetica"`.
 * If you use a [`.bib` file](#location-of-your-bib-file), citations like `[@smith2020]` are written out, e.g. as (Smith 2020), and the list of references is added at the end.
 * Images are found if their path is relative to the note. The PDF page size is A4; use `"pdf_page_size": "Letter"` for US Letter.
 * The [HTML export](#html-export) of the whole archive opens the result in your web browser; the preview pane of version 0.9 is gone, which made the app much smaller.

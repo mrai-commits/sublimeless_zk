@@ -177,4 +177,11 @@
     // Tab in a list item indents the item instead of inserting spaces
     // (switched on and off together with "continue_lists").
 
+    // Font of "Export Note to Word" and "Export Note to PDF".
+    "export_font": "Arial",
+
+    // The HTML export of the whole archive is hidden in version 1.0.
+    // Set to true to show the command "Export archive to HTML..." again.
+    "show_html_export": false,
+
 }
